@@ -1,31 +1,15 @@
 from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import IntEnum
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
-import gym
 import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
+from highway_env.road.road import LaneIndex
+from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
-from ..env_abc import Action, Environment, State
-
-
-class ChangeLaneAction(Action, IntEnum):
-    LANE_LEFT = 0
-    IDLE = 1
-    LANE_RIGHT = 2
-    FASTER = 3
-    SLOWER = 4
-
-
-@dataclass
-class ChangeLaneState(State):
-    state: np.ndarray = field()
-    speed: float = field()
-    is_crashed: bool = field()
-    prev_action: int = field()
-    cost: float = field()
+from ..env_abc import Environment, State
+from . import highway_utils
+from .highway_utils import HighwayEnvState, HighwayEnvDiscreteAction
 
 
 class ChangeLane(Environment):
@@ -36,7 +20,8 @@ class ChangeLane(Environment):
             "type": "Kinematics",
             "features": ['presence', 'x', 'y', 'vx', 'vy'],
             "normalize": False,
-            "observe_intentions": False
+            "observe_intentions": False,
+            "order": "sorted"
         },
         "action": {
             "type": "DiscreteMetaAction",
@@ -60,6 +45,7 @@ class ChangeLane(Environment):
         "render_agent": True,
         "offscreen_rendering": False
     }
+    EMPTY_VEHICLE: np.ndarray = np.array([0.0, 0.0, 0.0, 0.0])
 
     # protected
     _env: HighwayEnv
@@ -73,48 +59,157 @@ class ChangeLane(Environment):
         reward_speed_range: Tuple[float, float] = (20, 30)
     ) -> None:
         super().__init__()
-        env: HighwayEnv = gym.make("highway-v0")
-        config = deepcopy(ChangeLane.DEFAULT_CONFIG)
-        config["lanes_count"] = lanes_count
-        config["vehicles_count"] = vehicles_count
-        config["initial_spacing"] = initial_spacing
-        config["reward_speed_range"] = reward_speed_range
-        env.configure(config=config)
-        self._env = env
-        self._config = config
+        self._config = ChangeLane._make_config(
+            lanes_count=lanes_count,
+            vehicles_count=vehicles_count,
+            initial_spacing=initial_spacing,
+            reward_speed_range=reward_speed_range)
+        self._env = highway_utils.make_highway_env(config=self._config)
 
     @overrides
-    def step(self, action: ChangeLaneAction) -> Tuple[State, float, bool]:
+    def step(
+        self, action: HighwayEnvDiscreteAction
+    ) -> Tuple[HighwayEnvState, float, bool]:
         """Take an action.
 
         Args:
             action (Action): The action to be taken.
 
+        Raises:
+            ValueError: action is HighwayEnvDiscreteAction.INVALID
+
         Returns:
-            state (State): The next state after taking the passed in action.
+            mdp_state (State): The next state after taking the passed in action.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
-        obs, reward, is_terminal, info = self._env.step(action=action)
+        if action == HighwayEnvDiscreteAction.INVALID:
+            raise ValueError
+        _, reward, is_terminal, info = self._env.step(action=action)
+        observation: np.ndarray = self._make_observation()
         # info = {'speed': 29.1455588268693, 'crashed': False, 'action': 3, 'cost': 0.0}
-        state = ChangeLaneState(state=obs,
-                                speed=info["speed"],
-                                is_crashed=info["crashed"],
-                                prev_action=info["action"],
-                                cost=info["cost"])
-        return state, reward, is_terminal
+        mdp_state = HighwayEnvState(observation=observation,
+                                    speed=info["speed"],
+                                    is_crashed=info["crashed"],
+                                    prev_action=info["action"],
+                                    cost=info["cost"])
+        return mdp_state, reward, is_terminal
 
     @overrides
     def reset(self) -> State:
         """Reset the environment
 
         Returns:
-            state (State): Returns the state of the new environment.
+            mdp_state (State): The next state after taking the passed in action.
         """
-        obs = self._env.reset()
-        state = ChangeLaneState(state=obs,
-                                speed=-1.0,
-                                is_crashed=False,
-                                prev_action=-1,
-                                cost=-1.0)
+        _ = self._env.reset()
+        observation: np.ndarray = self._make_observation()
+        mdp_state = HighwayEnvState(
+            observation=observation,
+            speed=-1.0,
+            is_crashed=False,
+            prev_action=HighwayEnvDiscreteAction.INVALID,
+            cost=-1.0)
+        return mdp_state
+
+    # protected method
+    def _make_observation(self) -> np.ndarray:
+        """Make an observation based on the current vehicle state.
+
+        Raises:
+            ValueError: Raised when self._env.road.network is None or 
+
+        Returns:
+            obs (np.ndarray): (5, 4) The current observation of the ego vehicle. The shape corresponds to 5 vehicles in total and 4 statistics of the vehicle.
+        """
+        # env is not properly constructed
+        if self._env.road.network is None:
+            raise ValueError
+        ego_v: Vehicle = self._env.vehicle
+        obs_list: List[np.ndarray] = list()
+        # ego_state = [pos_x, pos_y, vel_x, vel_y]
+        ego_state: np.ndarray = self._make_vehicle_state(
+            ego_v.position, ego_v.velocity)
+        obs_list.append(ego_state)
+        # get the index of the lane that ego is currently in
+        lane_idx: LaneIndex = self._env.road.network.get_closest_lane_index(
+            position=ego_v.position)
+        # get all the lane next to the ego vehicle's current lane
+        # max length of side_lanes is 2
+        side_lanes: List[LaneIndex] = self._env.road.network.side_lanes(
+            lane_index=lane_idx)
+        for side_lane in side_lanes:
+            # get leader and follower
+            leader_v, follower_v = self._env.road.neighbour_vehicles(
+                vehicle=ego_v, lane_index=side_lane)
+            # calculate their relative state w.r.t ego_vehicle
+            leader_state: np.ndarray = self._calculate_relative_state(
+                ego_v, leader_v)
+            follower_state: np.ndarray = self._calculate_relative_state(
+                ego_v, follower_v)
+            obs_list.append(leader_state)
+            obs_list.append(follower_state)
+        # catch the case where there is only on side lane
+        if 1 <= len(obs_list) and len(obs_list) < 5:
+            for _ in range(5 - len(obs_list)):
+                obs_list.append(np.copy(ChangeLane.EMPTY_VEHICLE))
+        obs: np.ndarray = np.array(obs_list)
+        return obs
+
+    def _make_vehicle_state(self, pos: np.ndarray,
+                            vel: np.ndarray) -> np.ndarray:
+        """Make vehicle state.
+
+        Args:
+            pos (np.ndarray): (2, ) The position of the vehicle.
+            vel (np.ndarray): (2, ) The velocity of the vehicle.
+
+        Returns:
+            state (np.ndarray): (4, ) The state of the vehicle.
+        """
+        state: np.ndarray = np.concatenate((pos, vel), axis=0)
         return state
+
+    def _calculate_relative_state(
+            self, ego_v: Vehicle, target_v: Union[Vehicle,
+                                                  None]) -> np.ndarray:
+        """Calculate relative vehicle state.
+
+        Args:
+            ego_v (Vehicle): The ego vehicle.
+            target_v (Union[Vehicle, None]): The target vehicle.
+
+        Returns:
+            target_state (np.ndarray): (4, ) The target_v state relative to ego_v.
+        """
+        if target_v is None:
+            return np.copy(ChangeLane.EMPTY_VEHICLE)
+        # get relative position and velocity w.r.t ego vehicle
+        rel_pos: np.ndarray = target_v.position - ego_v.position
+        rel_vel: np.ndarray = target_v.velocity - ego_v.velocity
+        target_state: np.ndarray = self._make_vehicle_state(rel_pos, rel_vel)
+        return target_state
+
+    def _calculate_reward(self, state: np.ndarray, env_reward: float) -> float:
+        """Calculate the reward.
+
+        Args:
+            state (np.ndarray): The state of the self._env
+            env_reward (float): The reward given by self._env.step()
+
+        Returns:
+            reward (float): The current reward.
+        """
+        return env_reward
+
+    # protected static method
+    @staticmethod
+    def _make_config(lanes_count: int, vehicles_count: int,
+                     initial_spacing: float, reward_speed_range: Tuple[float,
+                                                                       float]):
+        config: Dict[str, Any] = deepcopy(ChangeLane.DEFAULT_CONFIG)
+        config["lanes_count"] = lanes_count
+        config["vehicles_count"] = vehicles_count
+        config["initial_spacing"] = initial_spacing
+        config["reward_speed_range"] = reward_speed_range
+        return config
