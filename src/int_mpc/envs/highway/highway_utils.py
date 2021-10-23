@@ -9,12 +9,13 @@ from highway_env.envs.highway_env import HighwayEnv
 from ..env_abc import Action, State
 
 
-class HighwyEnvAction(Action, IntEnum):
+class HighwayEnvDiscreteAction(Action, IntEnum):
     LANE_LEFT = 0
     IDLE = 1
     LANE_RIGHT = 2
     FASTER = 3
     SLOWER = 4
+    INVALID = -1
 
 
 @dataclass
