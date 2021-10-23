@@ -9,7 +9,7 @@ from overrides import overrides
 
 from ..env_abc import Environment, State
 from . import highway_utils
-from .highway_utils import HighwayEnvState, HighwayEnvDiscreteAction
+from .highway_utils import HighwayEnvDiscreteAction, HighwayEnvState
 
 
 class ChangeLane(Environment):
@@ -151,6 +151,7 @@ class ChangeLane(Environment):
             obs_list.append(follower_state)
         # catch the case where there is only on side lane
         if 1 <= len(obs_list) and len(obs_list) < 5:
+            # add empty vehicle to the observation
             for _ in range(5 - len(obs_list)):
                 obs_list.append(np.copy(ChangeLane.EMPTY_VEHICLE))
         obs: np.ndarray = np.array(obs_list)
@@ -167,6 +168,7 @@ class ChangeLane(Environment):
         Returns:
             state (np.ndarray): (4, ) The state of the vehicle.
         """
+        # concatenate position and velocity into a single observation vector
         state: np.ndarray = np.concatenate((pos, vel), axis=0)
         return state
 
@@ -187,6 +189,7 @@ class ChangeLane(Environment):
         # get relative position and velocity w.r.t ego vehicle
         rel_pos: np.ndarray = target_v.position - ego_v.position
         rel_vel: np.ndarray = target_v.velocity - ego_v.velocity
+        # create the target state
         target_state: np.ndarray = self._make_vehicle_state(rel_pos, rel_vel)
         return target_state
 
@@ -200,6 +203,7 @@ class ChangeLane(Environment):
         Returns:
             reward (float): The current reward.
         """
+        # currently use the system built-in reward formula
         return env_reward
 
     # protected static method
