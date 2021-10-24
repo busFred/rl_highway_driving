@@ -17,7 +17,6 @@ class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):
     LANE_RIGHT = 2
     FASTER = 3
     SLOWER = 4
-    INVALID = -1
 
     @classmethod
     @overrides

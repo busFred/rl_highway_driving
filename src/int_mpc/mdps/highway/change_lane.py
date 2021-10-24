@@ -9,8 +9,8 @@ from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
 from ..mdp_abc import Action, Environment, State
-from . import highway_mdps
-from .highway_mdps import HighwayEnvDiscreteAction, HighwayEnvState
+from . import highway_mdp
+from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 
 
 class ChangeLane(Environment):
@@ -65,7 +65,7 @@ class ChangeLane(Environment):
             vehicles_count=vehicles_count,
             initial_spacing=initial_spacing,
             reward_speed_range=reward_speed_range)
-        self._env = highway_utils.make_highway_env(config=self._config)
+        self._env = highway_mdp.make_highway_env(config=self._config)
 
     @overrides
     def step(
@@ -84,7 +84,7 @@ class ChangeLane(Environment):
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
-        if action == HighwayEnvDiscreteAction.INVALID:
+        if action not in HighwayEnvDiscreteAction:
             raise ValueError
         _, reward, is_terminal, info = self._env.step(action=action)
         observation: np.ndarray = self._make_observation()
@@ -112,12 +112,11 @@ class ChangeLane(Environment):
         """
         _ = self._env.reset()
         observation: np.ndarray = self._make_observation()
-        mdp_state = HighwayEnvState(
-            observation=observation,
-            speed=-1.0,
-            is_crashed=False,
-            prev_action=HighwayEnvDiscreteAction.INVALID,
-            cost=-1.0)
+        mdp_state = HighwayEnvState(observation=observation,
+                                    speed=-1.0,
+                                    is_crashed=False,
+                                    prev_action=-1,
+                                    cost=-1.0)
         return mdp_state
 
     # protected method
