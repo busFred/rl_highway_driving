@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from ..envs.env_abc import Action, State
+from ..envs.env_abc import Action, Environment, State
 
 
 class ReplayBuffer:
@@ -19,15 +19,15 @@ class ReplayBuffer:
         self._replay_buff = list()
         self._max_size = max_size
 
-    def add_experience(self, state: State, action: Action, reward: float,
-                       next_state: State, is_terminal: bool):
+    def add_experience(self, state: State, action: Action, next_state: State,
+                       reward: float, is_terminal: bool):
         """Add an experience to the replay buffer
 
         Args:
             state (State): The current state.
             action (Action): The action taken at current time step.
-            reward (float): The immediate reward associated with next_state.
             next_state (State): The next state given the current state and action.
+            reward (float): The immediate reward associated with next_state.
             is_terminal (bool): Whether the next_state is a terminal state.
         """
         # remove sample from replay buffer if max_size is exceeded
@@ -49,8 +49,8 @@ class ReplayBuffer:
         Returns:
             states (torch.Tensor): (batch_size, state_dim) The current states.
             actions (torch.Tensor): (batch_size, action_dim) The current actions.
-            rewards (torch.Tensor): (batch_size, 1) The next immediate rewards.
             next_states (torch.Tensor): (batch_szie, state_dim) The next states given current states and actions.
+            rewards (torch.Tensor): (batch_size, 1) The next immediate rewards.
             is_termianls (torch.Tensor): (batch_size, 1) Whether next states are terminal.
         """
         # batch_size never exceeds maximum experiences in the buffer
@@ -74,7 +74,35 @@ class ReplayBuffer:
         states = states.to(dtype=dtype)
         rewards = rewards.to(dtype=dtype)
         next_states = next_states.to(dtype=dtype)
-        return states, actions, rewards, next_states, is_terminals
+        return states, actions, next_states, rewards, is_terminals
 
     def __len__(self):
         return len(self._replay_buff)
+
+
+def create_random_replay_buffer(env: Environment, max_size: int,
+                                target_size: int):
+    """Create and initialize the replay buffer with random policy.
+
+    Args:
+        env (Environment): The enviornment in use.
+        max_size (int): The maximum length of the replay buffer.
+        target_size (int): The target replay buffer size.
+
+    Returns:
+        replay_buffer: The new replay buffer.
+    """
+    replay_buffer = ReplayBuffer(max_size)
+    state: State = env.reset()
+    while len(replay_buffer) < target_size:
+        action, next_state, reward, is_terminal = env.step_random()
+        replay_buffer.add_experience(state=state,
+                                     action=action,
+                                     next_state=next_state,
+                                     reward=reward,
+                                     is_terminal=is_terminal)
+        if is_terminal == False:
+            state = next_state
+        else:
+            state = env.reset()
+    return replay_buffer
