@@ -8,7 +8,7 @@ import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
 from overrides.overrides import overrides
 
-from ..env_abc import DiscreteAction, State
+from ..mdp_abc import DiscreteAction, State
 
 
 class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):

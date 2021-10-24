@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from ..envs.env_abc import Action, Environment, State
+from ..mdps.mdp_abc import Action, Environment, State
 
 
 class ReplayBuffer:

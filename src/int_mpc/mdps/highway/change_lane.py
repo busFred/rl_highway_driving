@@ -8,7 +8,7 @@ from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
-from ..env_abc import Action, Environment, State
+from ..mdp_abc import Action, Environment, State
 from . import highway_utils
 from .highway_utils import HighwayEnvDiscreteAction, HighwayEnvState
 
