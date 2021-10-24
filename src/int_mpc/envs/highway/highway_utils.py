@@ -5,6 +5,7 @@ from typing import Any, Dict
 import gym
 import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
+from overrides.overrides import overrides
 
 from ..env_abc import Action, State
 
@@ -25,6 +26,12 @@ class HighwayEnvState(State):
     is_crashed: bool = field()
     prev_action: int = field()
     cost: float = field()
+
+    @overrides
+    def get_nnet_state(self, copy: bool = True) -> np.ndarray:
+        if copy == True:
+            return np.copy(self.observation)
+        return self.observation
 
 
 def make_highway_env(config: Dict[str, Any]) -> HighwayEnv:
