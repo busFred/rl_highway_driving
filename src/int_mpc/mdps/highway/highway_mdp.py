@@ -18,13 +18,6 @@ class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):
     FASTER = 3
     SLOWER = 4
 
-    @classmethod
-    @overrides
-    def get_random_action(cls) -> "HighwayEnvDiscreteAction":
-        actions = list(HighwayEnvDiscreteAction)
-        action = random.choice(actions)
-        return action
-
 
 @dataclass
 class HighwayEnvState(State):

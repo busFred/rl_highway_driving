@@ -19,11 +19,6 @@ class Action(ABC):
         """
         pass
 
-    @abstractmethod
-    @classmethod
-    def get_random_action(cls) -> "Action":
-        pass
-
 
 class DiscreteAction(Action, IntEnum):
     @overrides
