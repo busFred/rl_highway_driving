@@ -7,10 +7,10 @@ import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
 from overrides.overrides import overrides
 
-from ..env_abc import Action, State
+from ..env_abc import DiscreteAction, State
 
 
-class HighwayEnvDiscreteAction(Action, IntEnum):
+class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):
     LANE_LEFT = 0
     IDLE = 1
     LANE_RIGHT = 2
@@ -28,7 +28,7 @@ class HighwayEnvState(State):
     cost: float = field()
 
     @overrides
-    def get_nnet_state(self, copy: bool = True) -> np.ndarray:
+    def get_np_state(self, copy: bool = True) -> np.ndarray:
         if copy == True:
             return np.copy(self.observation)
         return self.observation

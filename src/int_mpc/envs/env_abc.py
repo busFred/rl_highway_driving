@@ -1,17 +1,35 @@
 from abc import ABC, abstractmethod
+from enum import IntEnum
 from typing import Tuple
+
+import numpy as np
 
 
 class Action(ABC):
     pass
 
 
+class DiscreteAction(Action, IntEnum):
+    pass
+
+
+class ContinuousAction(Action):
+    @abstractmethod
+    def get_np_action(self) -> np.ndarray:
+        pass
+
+    pass
+
+
 class State(ABC):
+    @abstractmethod
+    def get_np_state(self, copy: bool = True) -> np.ndarray:
+        pass
+
     pass
 
 
 class Environment(ABC):
-
     @abstractmethod
     def step(self, action: Action) -> Tuple[State, float, bool]:
         """Take an action.
