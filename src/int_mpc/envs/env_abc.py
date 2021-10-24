@@ -3,21 +3,32 @@ from enum import IntEnum
 from typing import Tuple
 
 import numpy as np
+from overrides.overrides import overrides
 
 
 class Action(ABC):
+    @abstractmethod
+    def get_np_action(self, copy=True) -> np.ndarray:
+        """Get np action
+
+        Args:
+            copy (bool, optional): Makes the value independent from self. Defaults to True.
+
+        Returns:
+            action (np.ndarray): (action_dim, ) The numpy representation of the action.
+        """
+        pass
+
     pass
 
 
 class DiscreteAction(Action, IntEnum):
-    pass
+    @overrides
+    def get_np_action(self, copy=True) -> np.ndarray:
+        return np.array([self.value], copy=copy)
 
 
 class ContinuousAction(Action):
-    @abstractmethod
-    def get_np_action(self) -> np.ndarray:
-        pass
-
     pass
 
 
