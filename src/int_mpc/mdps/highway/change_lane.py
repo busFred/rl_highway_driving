@@ -9,8 +9,8 @@ from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
 from ..mdp_abc import Action, Environment, State
-from . import highway_utils
-from .highway_utils import HighwayEnvDiscreteAction, HighwayEnvState
+from . import highway_mdps
+from .highway_mdps import HighwayEnvDiscreteAction, HighwayEnvState
 
 
 class ChangeLane(Environment):
