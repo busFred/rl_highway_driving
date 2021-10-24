@@ -19,7 +19,10 @@ class Action(ABC):
         """
         pass
 
-    pass
+    @abstractmethod
+    @classmethod
+    def get_random_action(cls) -> "Action":
+        pass
 
 
 class DiscreteAction(Action, IntEnum):
@@ -50,6 +53,18 @@ class Environment(ABC):
 
         Returns:
             state (State): The next state after taking the passed in action.
+            reward (float): The reward associated with the state.
+            is_terminal (bool): Whether or not the state is terminal.
+        """
+        pass
+
+    @abstractmethod
+    def step_random(self) -> Tuple[Action, State, float, bool]:
+        """Take a random action.
+
+        Returns:
+            action (Action): The random action being taken.
+            next_state (State): The next state after taking the passed in action.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """

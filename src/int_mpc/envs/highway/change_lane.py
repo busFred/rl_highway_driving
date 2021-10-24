@@ -1,3 +1,4 @@
+import random
 from copy import deepcopy
 from typing import Any, Dict, List, Tuple, Union
 
@@ -7,7 +8,7 @@ from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
-from ..env_abc import Environment, State
+from ..env_abc import Action, Environment, State
 from . import highway_utils
 from .highway_utils import HighwayEnvDiscreteAction, HighwayEnvState
 
@@ -94,6 +95,13 @@ class ChangeLane(Environment):
                                     prev_action=info["action"],
                                     cost=info["cost"])
         return mdp_state, reward, is_terminal
+
+    @overrides
+    def step_random(self) -> Tuple[Action, State, float, bool]:
+        all_actions = list(HighwayEnvDiscreteAction)
+        action: HighwayEnvDiscreteAction = random.choice(all_actions)
+        mdp_state, reward, is_terminal = self.step(action)
+        return action, mdp_state, reward, is_terminal
 
     @overrides
     def reset(self) -> State:

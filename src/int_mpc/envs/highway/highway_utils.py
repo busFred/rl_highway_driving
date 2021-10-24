@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Dict
@@ -17,6 +18,13 @@ class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):
     FASTER = 3
     SLOWER = 4
     INVALID = -1
+
+    @classmethod
+    @overrides
+    def get_random_action(cls) -> "HighwayEnvDiscreteAction":
+        actions = list(HighwayEnvDiscreteAction)
+        action = random.choice(actions)
+        return action
 
 
 @dataclass
