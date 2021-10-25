@@ -77,7 +77,7 @@ class ChangeLane(Environment):
             action (Action): The action to be taken.
 
         Raises:
-            ValueError: action is HighwayEnvDiscreteAction.INVALID
+            ValueError: action is invalid.
 
         Returns:
             mdp_state (State): The next state after taking the passed in action.
@@ -97,6 +97,15 @@ class ChangeLane(Environment):
 
     @overrides
     def step_random(self) -> Tuple[Action, State, float, bool]:
+        """Take a random action.
+
+        The action ~ multinomial(n=1, p_vals=[1/5]*5).
+
+        Returns:
+            mdp_state (State): The next state after taking the passed in action.
+            reward (float): The reward associated with the state.
+            is_terminal (bool): Whether or not the state is terminal.
+        """
         all_actions = list(HighwayEnvDiscreteAction)
         action: HighwayEnvDiscreteAction = random.choice(all_actions)
         mdp_state, reward, is_terminal = self.step(action)
