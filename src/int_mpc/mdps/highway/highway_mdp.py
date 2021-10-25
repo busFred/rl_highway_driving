@@ -24,7 +24,6 @@ class HighwayEnvState(State):
     observation: np.ndarray = field()
     speed: float = field()
     is_crashed: bool = field()
-    prev_action: int = field()
     cost: float = field()
 
     @overrides

@@ -92,7 +92,6 @@ class ChangeLane(Environment):
         mdp_state = HighwayEnvState(observation=observation,
                                     speed=info["speed"],
                                     is_crashed=info["crashed"],
-                                    prev_action=info["action"],
                                     cost=info["cost"])
         return mdp_state, reward, is_terminal
 
@@ -115,7 +114,6 @@ class ChangeLane(Environment):
         mdp_state = HighwayEnvState(observation=observation,
                                     speed=-1.0,
                                     is_crashed=False,
-                                    prev_action=-1,
                                     cost=-1.0)
         return mdp_state
 
