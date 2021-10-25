@@ -20,7 +20,7 @@ class ReplayBuffer:
         self._max_size = max_size
 
     def add_experience(self, state: State, action: Action, next_state: State,
-                       reward: float, is_terminal: bool):
+                       next_reward: float, is_terminal: bool):
         """Add an experience to the replay buffer
 
         Args:
@@ -35,7 +35,7 @@ class ReplayBuffer:
             self._replay_buff.pop(0)
         # add sample to replay buffer
         self._replay_buff.append(
-            (state, action, reward, next_state, is_terminal))
+            (state, action, next_reward, next_state, is_terminal))
 
     def sample_expereinces(self,
                            batch_size: int,
@@ -63,8 +63,9 @@ class ReplayBuffer:
             [x[0].get_np_state(copy=True) for x in replay_buff_batch])
         actions: torch.Tensor = torch.tensor(
             [x[1].get_np_action(copy=True) for x in replay_buff_batch])
-        rewards: torch.Tensor = torch.tensor([x[2] for x in replay_buff_batch])
-        rewards = rewards.expand(-1, 1)
+        next_rewards: torch.Tensor = torch.tensor(
+            [x[2] for x in replay_buff_batch])
+        next_rewards = next_rewards.expand(-1, 1)
         next_states: torch.Tensor = torch.tensor(
             [x[3].get_np_state(copy=True) for x in replay_buff_batch])
         is_terminals: torch.Tensor = torch.tensor(
@@ -72,9 +73,9 @@ class ReplayBuffer:
         is_terminals = is_terminals.expand(-1, 1)
         # convert datatype
         states = states.to(dtype=dtype)
-        rewards = rewards.to(dtype=dtype)
+        next_rewards = next_rewards.to(dtype=dtype)
         next_states = next_states.to(dtype=dtype)
-        return states, actions, next_states, rewards, is_terminals
+        return states, actions, next_states, next_rewards, is_terminals
 
     def __len__(self):
         return len(self._replay_buff)
@@ -95,11 +96,11 @@ def create_random_replay_buffer(env: Environment, max_size: int,
     replay_buffer = ReplayBuffer(max_size)
     state: State = env.reset()
     while len(replay_buffer) < target_size:
-        action, next_state, reward, is_terminal = env.step_random()
+        action, next_state, next_reward, is_terminal = env.step_random()
         replay_buffer.add_experience(state=state,
                                      action=action,
                                      next_state=next_state,
-                                     reward=reward,
+                                     next_reward=next_reward,
                                      is_terminal=is_terminal)
         if is_terminal == False:
             state = next_state
