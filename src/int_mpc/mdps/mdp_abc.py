@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import Tuple
+from typing import Sequence, Tuple
 
 import numpy as np
 from overrides.overrides import overrides
+import torch
 
 
 class Action(ABC):
@@ -35,7 +36,15 @@ class State(ABC):
     def get_np_state(self, copy: bool = True) -> np.ndarray:
         pass
 
-    pass
+    @staticmethod
+    def states_to_torch(states: Sequence["State"], dtype: torch.dtype,
+                        device: torch.device) -> torch.Tensor:
+        states_np: np.ndarray = np.asarray(
+            [state.get_np_state() for state in states])
+        states_torch: torch.Tensor = torch.tensor(states_np,
+                                                  dtype=dtype,
+                                                  device=device)
+        return states_torch
 
 
 class Environment(ABC):
