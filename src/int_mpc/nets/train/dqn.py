@@ -8,7 +8,9 @@ from dataclasses_json import dataclass_json
 from torch import nn
 
 from ...mdps import mdp_utils
-from ...mdps.mdp_abc import State
+from ...mdps.mdp_abc import Environment, State
+from ...utils import replay_buff_utils
+from ...utils.replay_buff_utils import ReplayBuffer
 
 
 @dataclass_json
@@ -59,18 +61,14 @@ class DQN:
     def __init__(
         self,
         dqns: Sequence[nn.Module],
-        is_train: bool = False,
         dtype: torch.dtype = torch.float,
         device: torch.device = torch.device("cpu")
     ) -> None:
         self._dqns = dqns
+        self._targ_dqns = None
         self.dtype = dtype
         self.device = device
-        if is_train:
-            self._targ_dqns = copy.deepcopy(dqns)
-            self._update_targ()
-        else:
-            self.eval()
+        self.eval()
 
     def predict_q_vals(self, states: Sequence[State]) -> torch.Tensor:
         """Predict Q Vales of a sequence of states.
@@ -85,11 +83,22 @@ class DQN:
             states=states, dtype=self.dtype, device=self.device)
         return self._predict_q_vals(states=states_tensor)
 
+    def train(self):
+        """Set the dqns to train mode.
+
+        Raises:
+            ValueError: self.targ_dqns is none.
+        """
+        if self._targ_dqns is None:
+            self._update_targ()
+        for dqn in self.dqns:
+            dqn.train()
+
     def eval(self):
         """Set the dqns to eval mode.
         """
-        for dqns in self._dqns:
-            dqns.eval()
+        for dqn in self.dqns:
+            dqn.eval()
 
     def _predict_q_vals(self, states: torch.Tensor) -> torch.Tensor:
         """Predict Q Vales from the Tensor representation of states.
@@ -150,6 +159,16 @@ class DQN:
     def _update_targ(self):
         """Update target network.
         """
-        for dqn, targ_dqn in zip(self._dqns, self.targ_dqns):
+        if self._targ_dqns is None:
+            self._targ_dqns = copy.deepcopy(self.dqns)
+        for dqn, targ_dqn in zip(self.dqns, self.targ_dqns):
             targ_dqn.load_state_dict(dqn.state_dict())
             targ_dqn.eval()
+
+
+def train_dqn(env: Environment, dqn: DQN, dqn_config: DQNConfig):
+    dqn.train()
+    buff: ReplayBuffer = ReplayBuffer.create_random_replay_buffer(
+        env,
+        max_size=dqn_config.max_buff_size,
+        target_size=dqn_config.max_buff_size)
