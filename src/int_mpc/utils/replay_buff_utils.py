@@ -86,30 +86,30 @@ class ReplayBuffer:
     def __len__(self):
         return len(self._replay_buff)
 
+    @staticmethod
+    def create_random_replay_buffer(env: Environment, max_size: int,
+                                    target_size: int):
+        """Create and initialize the replay buffer with random policy.
 
-def create_random_replay_buffer(env: Environment, max_size: int,
-                                target_size: int):
-    """Create and initialize the replay buffer with random policy.
+        Args:
+            env (Environment): The enviornment in use.
+            max_size (int): The maximum length of the replay buffer.
+            target_size (int): The target replay buffer size.
 
-    Args:
-        env (Environment): The enviornment in use.
-        max_size (int): The maximum length of the replay buffer.
-        target_size (int): The target replay buffer size.
-
-    Returns:
-        replay_buffer: The new replay buffer.
-    """
-    replay_buffer = ReplayBuffer(max_size)
-    state: State = env.reset()
-    while len(replay_buffer) < target_size:
-        action, next_state, next_reward, is_terminal = env.step_random()
-        replay_buffer.add_experience(state=state,
-                                     action=action,
-                                     next_state=next_state,
-                                     next_reward=next_reward,
-                                     is_terminal=is_terminal)
-        if is_terminal == False:
-            state = next_state
-        else:
-            state = env.reset()
-    return replay_buffer
+        Returns:
+            replay_buffer: The new replay buffer.
+        """
+        replay_buffer = ReplayBuffer(max_size)
+        state: State = env.reset()
+        while len(replay_buffer) < target_size:
+            action, next_state, next_reward, is_terminal = env.step_random()
+            replay_buffer.add_experience(state=state,
+                                         action=action,
+                                         next_state=next_state,
+                                         next_reward=next_reward,
+                                         is_terminal=is_terminal)
+            if is_terminal == False:
+                state = next_state
+            else:
+                state = env.reset()
+        return replay_buffer
