@@ -1,14 +1,14 @@
 import copy
-from dataclasses import dataclass, field
-from typing import List, Sequence, Union
+import random
+from dataclasses import field
+from typing import List, Sequence, Tuple, Union
 
-import numpy as np
 import torch
 from dataclasses_json import dataclass_json
 from torch import nn
 
 from ...mdps import mdp_utils
-from ...mdps.mdp_abc import Environment, State
+from ...mdps.mdp_abc import DiscreteAction, DiscreteEnvironment, State
 from ...utils.replay_buff_utils import ReplayBuffer
 
 
@@ -70,17 +70,30 @@ class DQN:
         self.eval()
 
     def predict_q_vals(self, states: Sequence[State]) -> torch.Tensor:
-        """Predict Q Vales of a sequence of states.
+        """Predict and select the minimum q_vals predictions made by different dqns.
 
         Args:
-            states (Sequence[State]): (n_batch_size, ) States to be predicted.
+            states (Sequence[State]): (n_states, ) States to be predicted.
 
         Returns:
-            pred_q_vals (torch.Tensor): (n_batch_size, n_dqns) The predicted q values.
+            pred_q_vals (torch.Tensor): (n_states, n_actions) The predicted q values.
         """
         states_tensor: torch.Tensor = mdp_utils.states_to_torch(
             states=states, dtype=self.dtype, device=self.device)
         return self._predict_q_vals(states=states_tensor)
+
+    def predict_q_vals_raw(self, states: Sequence[State]) -> torch.Tensor:
+        """Return the predictions of the Q Vales for all states 
+
+        Args:
+            states (Sequence[State]): (n_states, ) States to be predicted.
+
+        Returns:
+            pred_q_vals (torch.Tensor): (n_dqns, n_states, n_actions) The predicted q values.
+        """
+        states_tensor: torch.Tensor = mdp_utils.states_to_torch(
+            states=states, dtype=self.dtype, device=self.device)
+        return self._predict_q_vals_raw(states=states_tensor)
 
     def train(self):
         """Set the dqns to train mode.
@@ -102,6 +115,21 @@ class DQN:
             dqn.eval()
 
     def _predict_q_vals(self, states: torch.Tensor) -> torch.Tensor:
+        """Predict and select the minimum q_vals predictions made by different dqns.
+
+        Args:
+            states (torch.Tensor): (n_states, n_state_features) States to be predicted.
+
+        Returns:
+            q_vals_pred (torch.Tensor): (n_states, n_actions) The predicted q values.
+        """
+        # (n_dqns, n_states, n_actions)
+        q_vals_pred: torch.Tensor = self._predict_q_vals_raw(states=states)
+        # (n_states, n_actions)
+        q_vals_pred = q_vals_pred.min(0)[0]
+        return q_vals_pred
+
+    def _predict_q_vals_raw(self, states: torch.Tensor) -> torch.Tensor:
         """Predict Q Vales from the Tensor representation of states.
 
         Args:
@@ -167,9 +195,54 @@ class DQN:
             targ_dqn.eval()
 
 
-def train_dqn(env: Environment, dqn: DQN, dqn_config: DQNConfig):
+def train_dqn(env: DiscreteEnvironment, dqn: DQN, dqn_config: DQNConfig):
     dqn.train()
     buff: ReplayBuffer = ReplayBuffer.create_random_replay_buffer(
         env,
         max_size=dqn_config.max_buff_size,
         target_size=dqn_config.max_buff_size)
+    for curr_eps in range(dqn_config.n_episodes):
+        # TODO call _deep_q_step
+        state: State = env.reset()
+        pass
+
+
+def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
+                 dqn_config: DQNConfig, replay_buff: ReplayBuffer):
+    dqn.eval()
+    action, next_state, next_reward, is_terminal = _eps_greedy_step(
+        env=env, state=state, dqn=dqn, dqn_config=dqn_config)
+    replay_buff.add_experience(state=state,
+                               action=action,
+                               next_state=next_state,
+                               next_reward=next_reward,
+                               is_terminal=is_terminal)
+    states, actions, next_states, next_rewards, is_terminals = replay_buff.sample_expereinces(
+        dqn_config.batch_size, dqn.dtype, dqn.device)
+
+
+def _eps_greedy_step(
+        env: DiscreteEnvironment, state: State, dqn: DQN,
+        dqn_config: DQNConfig) -> Tuple[DiscreteAction, State, float, bool]:
+    """Take a step based on epsilon greedy policy.
+
+    Args:
+        env (DiscreteEnvironment): The enviornment.
+        state (State): The current state.
+        dqn (DQN): The dqn
+        dqn_config (DQNConfig): The dqn hyperparameters.
+
+    Returns:
+        action (DiscreteAction): The current action.
+        next_state (State): The next state.
+        next_reward (float): The next reward.
+        is_terminal (bool): Whether next state is terminal.
+    """
+    is_random: bool = random.randint(0, 1) < dqn_config.epsilon
+    if is_random:
+        action, next_state, next_reward, is_terminal = env.step_random()
+        return action, next_state, next_reward, is_terminal
+    next_q_vals: torch.Tensor = dqn.predict_q_vals(states=[state])
+    action: DiscreteAction = env.int_to_action(next_q_vals.argmax(1)[0].item())
+    next_state, next_reward, is_terminal = env.step(action)
+    return action, next_state, next_reward, is_terminal
