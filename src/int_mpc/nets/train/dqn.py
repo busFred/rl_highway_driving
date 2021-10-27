@@ -9,7 +9,6 @@ from torch import nn
 
 from ...mdps import mdp_utils
 from ...mdps.mdp_abc import Environment, State
-from ...utils import replay_buff_utils
 from ...utils.replay_buff_utils import ReplayBuffer
 
 
@@ -85,6 +84,8 @@ class DQN:
 
     def train(self):
         """Set the dqns to train mode.
+
+        If self.targ_dqns is None, then make a deep copy of self.dqns and call self._update_targ()
 
         Raises:
             ValueError: self.targ_dqns is none.
