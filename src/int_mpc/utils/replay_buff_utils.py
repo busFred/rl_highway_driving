@@ -39,7 +39,8 @@ class ReplayBuffer:
 
     def sample_expereinces(self,
                            batch_size: int,
-                           dtype: torch.dtype = torch.float):
+                           dtype: torch.dtype = torch.float,
+                           device: torch.device = torch.device("cpu")):
         """Sample a batch of expereince
 
         Args:
@@ -51,30 +52,35 @@ class ReplayBuffer:
             actions (torch.Tensor): (batch_size, action_dim) The current actions.
             next_states (torch.Tensor): (batch_szie, state_dim) The next states given current states and actions.
             rewards (torch.Tensor): (batch_size, 1) The next immediate rewards.
-            is_termianls (torch.Tensor): (batch_size, 1) Whether next states are terminal.
+            is_termianls (torch.Tensor): (batch_size, ) Whether next states are terminal.
         """
         # batch_size never exceeds maximum experiences in the buffer
         batch_size = min(len(self._replay_buff), batch_size)
         # get the sample to be included in the current batch
         batch_idxs = np.random.randint(len(self._replay_buff), size=batch_size)
         replay_buff_batch = [self._replay_buff[idx] for idx in batch_idxs]
-        # convert pytorch tensor
+        # convert to pytorch tensor
+        # (batch_size, n_state_features)
         states: torch.Tensor = torch.tensor(
             [x[0].get_np_state(copy=True) for x in replay_buff_batch])
+        # (batch_size, n_action_features)
         actions: torch.Tensor = torch.tensor(
             [x[1].get_np_action(copy=True) for x in replay_buff_batch])
+        # (batch_size, 1)
         next_rewards: torch.Tensor = torch.tensor(
             [x[2] for x in replay_buff_batch])
         next_rewards = next_rewards.expand(-1, 1)
+        # (batch_size, n_state_features)
         next_states: torch.Tensor = torch.tensor(
             [x[3].get_np_state(copy=True) for x in replay_buff_batch])
+        # (batch_size, )
         is_terminals: torch.Tensor = torch.tensor(
             [x[4] for x in replay_buff_batch])
         is_terminals = is_terminals.expand(-1, 1)
         # convert datatype
-        states = states.to(dtype=dtype)
-        next_rewards = next_rewards.to(dtype=dtype)
-        next_states = next_states.to(dtype=dtype)
+        states = states.to(dtype=dtype, device=device)
+        next_rewards = next_rewards.to(dtype=dtype, device=device)
+        next_states = next_states.to(dtype=dtype, device=device)
         return states, actions, next_states, next_rewards, is_terminals
 
     def __len__(self):
