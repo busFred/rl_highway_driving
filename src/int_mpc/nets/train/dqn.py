@@ -31,12 +31,25 @@ class DQN:
 
     @property
     def dqns(self) -> Sequence[nn.Module]:
+        """Get the dqns.
+
+        Returns:
+            dqns (Sequence[nn.Module]): The self.dqns.
+        """
         for dqn in self._dqns:
             dqn.to(device=self.device, dtype=self.dtype)
         return self.dqns
 
     @property
     def targ_dqns(self) -> Sequence[nn.Module]:
+        """Get the targ_dqns.
+
+        Raises:
+            ValueError: if self.targ_dqns is None.
+
+        Returns:
+            targ_dqns (Sequence[nn.Module]): The target self.dqns.
+        """
         if self._targ_dqns is None:
             raise ValueError("self.targ_dqns is None")
         for targ_dqn in self._targ_dqns:
