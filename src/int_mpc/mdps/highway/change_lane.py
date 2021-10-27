@@ -8,12 +8,12 @@ from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
 from overrides import overrides
 
-from ..mdp_abc import Action, Environment, State
+from ..mdp_abc import DiscreteEnvironment, State
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 
 
-class ChangeLane(Environment):
+class ChangeLane(DiscreteEnvironment):
 
     # static const
     DEFAULT_CONFIG: Dict[str, Any] = {
@@ -96,7 +96,8 @@ class ChangeLane(Environment):
         return mdp_state, reward, is_terminal
 
     @overrides
-    def step_random(self) -> Tuple[Action, State, float, bool]:
+    def step_random(
+            self) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
         """Take a random action.
 
         The action ~ multinomial(n=1, p_vals=[1/5]*5).
@@ -125,6 +126,14 @@ class ChangeLane(Environment):
                                     is_crashed=False,
                                     cost=-1.0)
         return mdp_state
+
+    @overrides
+    def int_to_action(self, action: int) -> HighwayEnvDiscreteAction:
+        try:
+            act = HighwayEnvDiscreteAction(action)
+            return act
+        except:
+            raise ValueError("unsupporeted int action")
 
     # protected method
     def _make_observation(self) -> np.ndarray:

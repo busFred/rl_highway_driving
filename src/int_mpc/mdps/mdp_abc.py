@@ -71,3 +71,27 @@ class Environment(ABC):
             state (State): Returns the state of the new environment.
         """
         pass
+
+
+class DiscreteEnvironment(Environment):
+    @overrides
+    @abstractmethod
+    def step(self, action: DiscreteAction) -> Tuple[State, float, bool]:
+        pass
+
+    @overrides
+    @abstractmethod
+    def step_random(self) -> Tuple[DiscreteAction, State, float, bool]:
+        """Take a random action.
+
+        Returns:
+            action (Action): The random action being taken.
+            next_state (State): The next state after taking the passed in action.
+            reward (float): The reward associated with the state.
+            is_terminal (bool): Whether or not the state is terminal.
+        """
+        pass
+
+    @abstractmethod
+    def int_to_action(self, action: int) -> "DiscreteAction":
+        pass
