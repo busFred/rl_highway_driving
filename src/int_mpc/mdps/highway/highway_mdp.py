@@ -1,4 +1,3 @@
-import random
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Dict
@@ -11,7 +10,7 @@ from overrides.overrides import overrides
 from ..mdp_abc import DiscreteAction, State
 
 
-class HighwayEnvDiscreteAction(DiscreteAction, IntEnum):
+class HighwayEnvDiscreteAction(DiscreteAction):
     LANE_LEFT = 0
     IDLE = 1
     LANE_RIGHT = 2

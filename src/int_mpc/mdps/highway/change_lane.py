@@ -13,7 +13,7 @@ from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 
 
-class ChangeLane(DiscreteEnvironment):
+class ChangeLaneEnv(DiscreteEnvironment):
 
     # static const
     DEFAULT_CONFIG: Dict[str, Any] = {
@@ -60,21 +60,23 @@ class ChangeLane(DiscreteEnvironment):
         reward_speed_range: Tuple[float, float] = (20, 30)
     ) -> None:
         super().__init__()
-        self._config = ChangeLane._make_config(
+        self._config = ChangeLaneEnv._make_config(
             lanes_count=lanes_count,
             vehicles_count=vehicles_count,
             initial_spacing=initial_spacing,
             reward_speed_range=reward_speed_range)
         self._env = highway_mdp.make_highway_env(config=self._config)
 
-    @overrides
+    # @overrides
     def step(
-        self, action: HighwayEnvDiscreteAction
-    ) -> Tuple[HighwayEnvState, float, bool]:
+            self,
+            action: HighwayEnvDiscreteAction,
+            to_visualize: bool = False) -> Tuple[HighwayEnvState, float, bool]:
         """Take an action.
 
         Args:
             action (Action): The action to be taken.
+            to_visualize (bool): Whether to render the visualization.
 
         Raises:
             ValueError: action is invalid.
@@ -93,23 +95,32 @@ class ChangeLane(DiscreteEnvironment):
                                     speed=info["speed"],
                                     is_crashed=info["crashed"],
                                     cost=info["cost"])
+        if to_visualize:
+            self._env.render()
         return mdp_state, reward, is_terminal
 
-    @overrides
+    # @overrides
     def step_random(
-            self) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
+        self,
+        to_visualize: bool = False
+    ) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
         """Take a random action.
 
         The action ~ multinomial(n=1, p_vals=[1/5]*5).
 
+        Args:
+            to_visualize (bool): Whether to render the visualization.
+
+
         Returns:
+            action (HighwayEnvDiscreteAction): The action being taken.
             mdp_state (State): The next state after taking the passed in action.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
         all_actions = list(HighwayEnvDiscreteAction)
         action: HighwayEnvDiscreteAction = random.choice(all_actions)
-        mdp_state, reward, is_terminal = self.step(action)
+        mdp_state, reward, is_terminal = self.step(action, to_visualize)
         return action, mdp_state, reward, is_terminal
 
     @overrides
@@ -172,11 +183,11 @@ class ChangeLane(DiscreteEnvironment):
                 ego_v, follower_v)
             obs_list.append(leader_state)
             obs_list.append(follower_state)
-        # catch the case where there is only on side lane
+        # catch the case where there is only one side lane
         if 1 <= len(obs_list) and len(obs_list) < 5:
             # add empty vehicle to the observation
             for _ in range(5 - len(obs_list)):
-                obs_list.append(np.copy(ChangeLane.EMPTY_VEHICLE))
+                obs_list.append(np.copy(ChangeLaneEnv.EMPTY_VEHICLE))
         obs: np.ndarray = np.array(obs_list)
         return obs
 
@@ -208,7 +219,7 @@ class ChangeLane(DiscreteEnvironment):
             target_state (np.ndarray): (4, ) The target_v state relative to ego_v.
         """
         if target_v is None:
-            return np.copy(ChangeLane.EMPTY_VEHICLE)
+            return np.copy(ChangeLaneEnv.EMPTY_VEHICLE)
         # get relative position and velocity w.r.t ego vehicle
         rel_pos: np.ndarray = target_v.position - ego_v.position
         rel_vel: np.ndarray = target_v.velocity - ego_v.velocity
@@ -234,7 +245,7 @@ class ChangeLane(DiscreteEnvironment):
     def _make_config(lanes_count: int, vehicles_count: int,
                      initial_spacing: float, reward_speed_range: Tuple[float,
                                                                        float]):
-        config: Dict[str, Any] = deepcopy(ChangeLane.DEFAULT_CONFIG)
+        config: Dict[str, Any] = deepcopy(ChangeLaneEnv.DEFAULT_CONFIG)
         config["lanes_count"] = lanes_count
         config["vehicles_count"] = vehicles_count
         config["initial_spacing"] = initial_spacing
