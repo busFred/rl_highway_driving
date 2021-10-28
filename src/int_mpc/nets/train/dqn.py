@@ -161,8 +161,8 @@ class DQN:
         q_vals_pred_l: List[torch.Tensor] = [dqn(states) for dqn in self.dqns]
         return q_vals_pred_l
 
-    def _compute_target(self, states: torch.Tensor, next_rewards: torch.Tensor,
-                        is_terminals: torch.Tensor,
+    def _compute_target(self, next_states: torch.Tensor,
+                        next_rewards: torch.Tensor, is_terminals: torch.Tensor,
                         dqn_config: DQNConfig) -> torch.Tensor:
         """Compute target q values given a tensor representation for states.
 
@@ -175,12 +175,12 @@ class DQN:
         Returns:
             target_q_vals (torch.Tensor): (n_states, 1) The target value.
         """
-        states.to(dtype=self.dtype, device=self.device)
+        next_states.to(dtype=self.dtype, device=self.device)
         target_q_vals_l: List[torch.Tensor] = list()
         # get target q_vals from each targ_dqns
         for targ_dqn in self.targ_dqns:
             # (n_states, n_actions)
-            next_q_vals: torch.Tensor = targ_dqn(states)
+            next_q_vals: torch.Tensor = targ_dqn(next_states)
             next_q_vals = next_q_vals.detach()
             # select next action greedily
             # (n_states, 1)
@@ -215,26 +215,47 @@ def train_dqn(env: DiscreteEnvironment, dqn: DQN, dqn_config: DQNConfig):
         max_size=dqn_config.max_buff_size,
         target_size=dqn_config.max_buff_size)
     for curr_eps in range(dqn_config.n_episodes):
-        # TODO call _deep_q_step
         state: State = env.reset()
-        pass
+        for cur_step in range(dqn_config.max_episode_steps):
+            next_state: State = _deep_q_step(env=env,
+                                             state=state,
+                                             dqn=dqn,
+                                             dqn_config=dqn_config,
+                                             buff=buff)
+            state = next_state
+        if curr_eps % dqn_config.targ_update_episodes == 0:
+            dqn._update_targ()
+        print(str.format("episode: {}/{}", curr_eps + 1,
+                         dqn_config.n_episodes))
 
 
 def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
-                 dqn_config: DQNConfig, replay_buff: ReplayBuffer):
+                 dqn_config: DQNConfig, buff: ReplayBuffer) -> State:
+    """Step for deep q network
+
+    Args:
+        env (DiscreteEnvironment): A discrete enviornment.
+        state (State): The current state of the enviornment.
+        dqn (DQN): The dqn.
+        dqn_config (DQNConfig): The hyperparameters for the dqn.
+        buff (ReplayBuffer): The replay buffer.
+
+    Returns:
+        State: The next state.
+    """
     dqn.eval()
     action, next_state, next_reward, is_terminal = _eps_greedy_step(
         env=env, state=state, dqn=dqn, dqn_config=dqn_config)
-    replay_buff.add_experience(state=state,
-                               action=action,
-                               next_state=next_state,
-                               next_reward=next_reward,
-                               is_terminal=is_terminal)
-    states, actions, next_states, next_rewards, is_terminals = replay_buff.sample_expereinces(
+    buff.add_experience(state=state,
+                        action=action,
+                        next_state=next_state,
+                        next_reward=next_reward,
+                        is_terminal=is_terminal)
+    states, actions, next_states, next_rewards, is_terminals = buff.sample_expereinces(
         dqn_config.batch_size, dqn.dtype, dqn.device)
     dqn.train()
     target_q_vals: torch.Tensor = dqn._compute_target(
-        states=states,
+        next_states=next_states,
         next_rewards=next_rewards,
         is_terminals=is_terminals,
         dqn_config=dqn_config)
@@ -243,6 +264,7 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
         error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
         error.backward()
         optimizer.step()
+    return next_state
 
 
 def _eps_greedy_step(
@@ -251,10 +273,10 @@ def _eps_greedy_step(
     """Take a step based on epsilon greedy policy.
 
     Args:
-        env (DiscreteEnvironment): The enviornment.
-        state (State): The current state.
-        dqn (DQN): The dqn
-        dqn_config (DQNConfig): The dqn hyperparameters.
+        env (DiscreteEnvironment): A discrete enviornment.
+        state (State): The current state of the enviornment.
+        dqn (DQN): The dqn.
+        dqn_config (DQNConfig): The hyperparameters for the dqn.
 
     Returns:
         action (DiscreteAction): The current action.
