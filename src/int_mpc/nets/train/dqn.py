@@ -26,6 +26,7 @@ class DQNConfig:
 class DQN:
 
     _dqns: Sequence[nn.Module]
+    _optimizers: Union[Sequence[torch.optim.Optimizer], None]
     _targ_dqns: Union[Sequence[nn.Module], None]
     dtype: torch.dtype
     device: torch.device
@@ -40,6 +41,12 @@ class DQN:
         for dqn in self._dqns:
             dqn.to(device=self.device, dtype=self.dtype)
         return self.dqns
+
+    @property
+    def optimizers(self) -> Sequence[torch.optim.Optimizer]:
+        if self._optimizers is None:
+            raise ValueError("self._optimizers is None")
+        return self._optimizers
 
     @property
     def targ_dqns(self) -> Sequence[nn.Module]:
@@ -60,10 +67,12 @@ class DQN:
     def __init__(
         self,
         dqns: Sequence[nn.Module],
+        optimizers: Sequence[torch.optim.Optimizer],
         dtype: torch.dtype = torch.float,
         device: torch.device = torch.device("cpu")
     ) -> None:
         self._dqns = dqns
+        self._optimizers = optimizers
         self._targ_dqns = None
         self.dtype = dtype
         self.device = device
@@ -82,7 +91,8 @@ class DQN:
             states=states, dtype=self.dtype, device=self.device)
         return self._predict_q_vals(states=states_tensor)
 
-    def predict_q_vals_raw(self, states: Sequence[State]) -> torch.Tensor:
+    def predict_q_vals_raw(self,
+                           states: Sequence[State]) -> Sequence[torch.Tensor]:
         """Return the predictions of the Q Vales for all states 
 
         Args:
@@ -101,12 +111,15 @@ class DQN:
         If self.targ_dqns is None, then make a deep copy of self.dqns and call self._update_targ()
 
         Raises:
-            ValueError: self.targ_dqns is none.
+            ValueError: self._optimizers has no optimizer registered
         """
+        if self._optimizers is None:
+            raise ValueError("self._optimizers has no optimizer registered")
         if self._targ_dqns is None:
             self._update_targ()
-        for dqn in self.dqns:
+        for dqn, optimizer in zip(self.dqns, self.optimizers):
             dqn.train()
+            optimizer.zero_grad()
 
     def eval(self):
         """Set the dqns to eval mode.
@@ -123,13 +136,18 @@ class DQN:
         Returns:
             q_vals_pred (torch.Tensor): (n_states, n_actions) The predicted q values.
         """
+        q_vals_pred_s: Sequence[torch.Tensor] = self._predict_q_vals_raw(
+            states=states)
         # (n_dqns, n_states, n_actions)
-        q_vals_pred: torch.Tensor = self._predict_q_vals_raw(states=states)
+        q_vals_pred: torch.Tensor = torch.as_tensor(q_vals_pred_s,
+                                                    dtype=self.dtype,
+                                                    device=self.device)
         # (n_states, n_actions)
         q_vals_pred = q_vals_pred.min(0)[0]
         return q_vals_pred
 
-    def _predict_q_vals_raw(self, states: torch.Tensor) -> torch.Tensor:
+    def _predict_q_vals_raw(self,
+                            states: torch.Tensor) -> Sequence[torch.Tensor]:
         """Predict Q Vales from the Tensor representation of states.
 
         Args:
@@ -140,13 +158,8 @@ class DQN:
         """
         states.to(dtype=self.dtype, device=self.device)
         # (n_dqns, n_states, n_actions)
-        q_vals_pred_l: Sequence[torch.Tensor] = [
-            dqn(states) for dqn in self.dqns
-        ]
-        q_vals_pred: torch.Tensor = torch.as_tensor(q_vals_pred_l,
-                                                    dtype=self.dtype,
-                                                    device=self.device)
-        return q_vals_pred
+        q_vals_pred_l: List[torch.Tensor] = [dqn(states) for dqn in self.dqns]
+        return q_vals_pred_l
 
     def _compute_target(self, states: torch.Tensor, next_rewards: torch.Tensor,
                         is_terminals: torch.Tensor,
@@ -219,6 +232,17 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
                                is_terminal=is_terminal)
     states, actions, next_states, next_rewards, is_terminals = replay_buff.sample_expereinces(
         dqn_config.batch_size, dqn.dtype, dqn.device)
+    dqn.train()
+    target_q_vals: torch.Tensor = dqn._compute_target(
+        states=states,
+        next_rewards=next_rewards,
+        is_terminals=is_terminals,
+        dqn_config=dqn_config)
+    pred_q_vals_s: Sequence[torch.Tensor] = dqn._predict_q_vals_raw(states)
+    for pred_q_vals, optimizer in zip(pred_q_vals_s, dqn.optimizers):
+        error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
+        error.backward()
+        optimizer.step()
 
 
 def _eps_greedy_step(
