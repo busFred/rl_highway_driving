@@ -33,6 +33,14 @@ class ContinuousAction(Action):
 class State(ABC):
     @abstractmethod
     def get_np_state(self, copy: bool = True) -> np.ndarray:
+        """Get numpy representation of  state.
+
+        Args:
+            copy (bool, optional): Whether to copy the data or not. Defaults to True.
+
+        Returns:
+            state_np (np.ndarray): The numpy representation of the state.
+        """
         pass
 
 
