@@ -253,7 +253,7 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
                         next_state=next_state,
                         next_reward=next_reward,
                         is_terminal=is_terminal)
-    states, actions, next_states, next_rewards, is_terminals = buff.sample_expereinces(
+    states, actions, next_states, next_rewards, is_terminals = buff.sample_experiences(
         dqn_config.batch_size, dqn.dtype, dqn.device)
     dqn.train()
     target_q_vals: torch.Tensor = dqn._compute_target(
