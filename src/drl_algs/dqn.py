@@ -178,12 +178,46 @@ def train_dqn(env: DiscreteEnvironment,
             dqn.eval()
             is_terminal = False
             while is_terminal == False:
-                _, next_state, _, is_terminal = _eps_greedy_step(
+                _, next_state, _, is_terminal = eps_greedy_step(
                     env=env, state=state, dqn=dqn, dqn_config=dqn_config)
                 state = next_state
             dqn.train()
         print(str.format("episode: {}/{}", curr_eps + 1,
                          dqn_config.n_episodes))
+
+
+def eps_greedy_step(
+        env: DiscreteEnvironment,
+        state: State,
+        dqn: DQN,
+        dqn_config: DQNConfig,
+        to_visualize: bool = False
+) -> Tuple[DiscreteAction, State, float, bool]:
+    """Take a step based on epsilon greedy policy.
+
+    Args:
+        env (DiscreteEnvironment): A discrete enviornment.
+        state (State): The current state of the enviornment.
+        dqn (DQN): The dqn.
+        dqn_config (DQNConfig): The hyperparameters for the dqn.
+
+    Returns:
+        action (DiscreteAction): The current action.
+        next_state (State): The next state.
+        next_reward (float): The next reward.
+        is_terminal (bool): Whether next state is terminal.
+    """
+    is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
+    if is_random:
+        action, next_state, next_reward, is_terminal = env.step_random(
+            to_visualize=to_visualize)
+        return action, next_state, next_reward, is_terminal
+    # (1, n_actions)
+    next_q_vals: torch.Tensor = dqn.predict_q_vals(states=[state])
+    action: DiscreteAction = env.int_to_action(next_q_vals.argmax(1)[0].item())
+    next_state, next_reward, is_terminal = env.step(action,
+                                                    to_visualize=to_visualize)
+    return action, next_state, next_reward, is_terminal
 
 
 def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
@@ -201,7 +235,7 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
         State: The next state.
     """
     dqn.eval()
-    action, next_state, next_reward, is_terminal = _eps_greedy_step(
+    action, next_state, next_reward, is_terminal = eps_greedy_step(
         env=env, state=state, dqn=dqn, dqn_config=dqn_config)
     buff.add_experience(state=state,
                         action=action,
@@ -225,31 +259,3 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
     error.backward()
     dqn.optimizer.step()
     return next_state
-
-
-def _eps_greedy_step(
-        env: DiscreteEnvironment, state: State, dqn: DQN,
-        dqn_config: DQNConfig) -> Tuple[DiscreteAction, State, float, bool]:
-    """Take a step based on epsilon greedy policy.
-
-    Args:
-        env (DiscreteEnvironment): A discrete enviornment.
-        state (State): The current state of the enviornment.
-        dqn (DQN): The dqn.
-        dqn_config (DQNConfig): The hyperparameters for the dqn.
-
-    Returns:
-        action (DiscreteAction): The current action.
-        next_state (State): The next state.
-        next_reward (float): The next reward.
-        is_terminal (bool): Whether next state is terminal.
-    """
-    is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
-    if is_random:
-        action, next_state, next_reward, is_terminal = env.step_random()
-        return action, next_state, next_reward, is_terminal
-    # (1, n_actions)
-    next_q_vals: torch.Tensor = dqn.predict_q_vals(states=[state])
-    action: DiscreteAction = env.int_to_action(next_q_vals.argmax(1)[0].item())
-    next_state, next_reward, is_terminal = env.step(action)
-    return action, next_state, next_reward, is_terminal
