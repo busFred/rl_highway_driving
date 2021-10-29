@@ -179,7 +179,11 @@ def train_dqn(env: DiscreteEnvironment,
             is_terminal = False
             while is_terminal == False:
                 _, next_state, _, is_terminal = eps_greedy_step(
-                    env=env, state=state, dqn=dqn, dqn_config=dqn_config)
+                    env=env,
+                    state=state,
+                    dqn=dqn,
+                    dqn_config=dqn_config,
+                    to_visualize=to_visualize)
                 state = next_state
             dqn.train()
         print(str.format("episode: {}/{}", curr_eps + 1,
