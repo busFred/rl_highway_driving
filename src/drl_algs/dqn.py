@@ -1,5 +1,5 @@
 import copy
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import List, Sequence, Tuple, Union
 
 import numpy as np
@@ -12,6 +12,7 @@ from torch import nn
 
 
 @dataclass_json
+@dataclass
 class DQNConfig:
     epsilon: float = field(default=0.5)
     discount: float = field(default=1.0)
@@ -153,7 +154,10 @@ class DQN:
         self.targ_dqn.eval()
 
 
-def train_dqn(env: DiscreteEnvironment, dqn: DQN, dqn_config: DQNConfig):
+def train_dqn(env: DiscreteEnvironment,
+              dqn: DQN,
+              dqn_config: DQNConfig,
+              to_visualize: bool = False):
     dqn.train()
     buff: ReplayBuffer = ReplayBuffer.create_random_replay_buffer(
         env,
@@ -170,6 +174,15 @@ def train_dqn(env: DiscreteEnvironment, dqn: DQN, dqn_config: DQNConfig):
             state = next_state
         if curr_eps % dqn_config.targ_update_episodes == 0:
             dqn._update_targ()
+        if to_visualize:
+            state = env.reset()
+            dqn.eval()
+            is_terminal = False
+            while is_terminal == False:
+                _, next_state, _, is_terminal = _eps_greedy_step(
+                    env=env, state=state, dqn=dqn, dqn_config=dqn_config)
+                state = next_state
+            dqn.train()
         print(str.format("episode: {}/{}", curr_eps + 1,
                          dqn_config.n_episodes))
 
