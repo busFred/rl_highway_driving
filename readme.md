@@ -19,36 +19,35 @@
     Contains all the files used to train the nnet.
 
 * `src/`
+
+    * `drl_algs`
+        
+        The package that contains the drl algorithms.
+
+    * `drl_utils`
+        
+        The package that contains the utilities for drl.
+
     * `int_mpc/`
         
-        The base package that contains all the needed subpackage, functions, and classes required for building the simplified IntMPC.
+        The package that defines the int_mpc Markov Decision Process.
 
-## IntMPC Package Description:
+    * `mdps/`
 
-* `mdps`
+        The package that contains base classes for Markov Decision Process.
+
+        * `mdp_abc`
+
+            Defines base classes `State`, `Action`, and `Environment`.
     
-    This subpackage contains all the modules related to defining the Markov Decision Process.
+        * `mdp_utils`
     
-    * `mdp_abc`
-        
-        Defines base classes `State`, `Action`, and `Environment`.
-
-    * `mdp_utils`
-
-        Contains helper functions specifically for mdp.
-
-    * `policy_abc`
-        
-        WORK IN PROGRESS.
-
-        Contains classes that define the policy. Some RL algorithm requires independent policy ML models; this module is intended for this purpose.
-
-        However, as this is more likely to be used with PyTorch, it might be moved to `int_mpc.nets` module. NOT DETERMINED YET.
-
-* `nets`
+            Contains helper functions specifically for mdp.
     
-    This subpackage contains all the function and classes used to define drl models. Might rename this to `drl_alg` and let `nets` contains module definition.
-
-* `utils`
-
-    Contains more general purpose utility functions or classes.
+        * `policy_abc`
+            
+            WORK IN PROGRESS.
+    
+            Contains classes that define the policy. Some RL algorithm requires independent policy ML models; this module is intended for this purpose.
+    
+            However, as this is more likely to be used with PyTorch, it might be moved to `int_mpc.nets` module. NOT DETERMINED YET.
