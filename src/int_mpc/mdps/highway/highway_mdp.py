@@ -1,13 +1,11 @@
 from dataclasses import dataclass, field
-from enum import IntEnum
 from typing import Any, Dict
 
 import gym
 import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
+from mdps.mdp_abc import DiscreteAction, State
 from overrides.overrides import overrides
-
-from ..mdp_abc import DiscreteAction, State
 
 
 class HighwayEnvDiscreteAction(DiscreteAction):

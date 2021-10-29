@@ -6,9 +6,9 @@ import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
+from mdps.mdp_abc import DiscreteEnvironment, State
 from overrides import overrides
 
-from ..mdp_abc import DiscreteEnvironment, State
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 

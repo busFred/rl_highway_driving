@@ -1,11 +1,12 @@
 from typing import List, Sequence
+
 import numpy as np
 import scipy.stats
 import torch
+from mdps.policy_abc import StochActNetPolicyBase
 from overrides.overrides import overrides
 from torch import nn
 
-from ..policy_abc import StochActNetPolicyBase
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 
 
