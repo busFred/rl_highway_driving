@@ -1,11 +1,5 @@
 #%%
-import sys
-from argparse import ArgumentParser, Namespace
-from typing import List, Sequence
-
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
-from int_mpc.nets.train import dqn as dqn_train
-from torch import nn
 
 #%%
 env = ChangeLaneEnv()
