@@ -69,14 +69,14 @@ class ReplayBuffer:
         # (batch_size, 1)
         next_rewards: torch.Tensor = torch.tensor(
             [x[2] for x in replay_buff_batch])
-        next_rewards = next_rewards.expand(-1, 1)
+        next_rewards = next_rewards.reshape(batch_size, 1)
         # (batch_size, n_state_features)
         next_states: torch.Tensor = torch.tensor(
             [x[3].get_np_state(copy=True) for x in replay_buff_batch])
         # (batch_size, )
         is_terminals: torch.Tensor = torch.tensor(
             [x[4] for x in replay_buff_batch])
-        is_terminals = is_terminals.expand(-1, 1)
+        # is_terminals = is_terminals.expand(batch_size, 1)
         # convert datatype
         states = states.to(dtype=dtype, device=device)
         next_rewards = next_rewards.to(dtype=dtype, device=device)
