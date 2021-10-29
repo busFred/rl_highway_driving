@@ -37,7 +37,7 @@ class ReplayBuffer:
         self._replay_buff.append(
             (state, action, next_reward, next_state, is_terminal))
 
-    def sample_expereinces(self,
+    def sample_experiences(self,
                            batch_size: int,
                            dtype: torch.dtype = torch.float,
                            device: torch.device = torch.device("cpu")):
