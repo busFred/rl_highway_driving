@@ -172,6 +172,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         # max length of side_lanes is 2
         side_lanes: List[LaneIndex] = self._env.road.network.side_lanes(
             lane_index=lane_idx)
+        # add the lane that ego vehicle is currently in to index 0
         side_lanes.insert(0, lane_idx)
         for side_lane in side_lanes:
             # get leader and follower
