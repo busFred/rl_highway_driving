@@ -154,7 +154,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             ValueError: Raised when self._env.road.network is None or 
 
         Returns:
-            obs (np.ndarray): (5, 4) The current observation of the ego vehicle. The shape corresponds to 5 vehicles in total and 4 statistics of the vehicle.
+            obs (np.ndarray): (7, 4) The current observation of the ego vehicle. The shape corresponds to 5 vehicles in total and 4 statistics of the vehicle.
         """
         # env is not properly constructed
         if self._env.road.network is None:
@@ -172,6 +172,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         # max length of side_lanes is 2
         side_lanes: List[LaneIndex] = self._env.road.network.side_lanes(
             lane_index=lane_idx)
+        side_lanes.insert(0, lane_idx)
         for side_lane in side_lanes:
             # get leader and follower
             leader_v, follower_v = self._env.road.neighbour_vehicles(
@@ -184,9 +185,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
             obs_list.append(leader_state)
             obs_list.append(follower_state)
         # catch the case where there is only one side lane
-        if 1 <= len(obs_list) and len(obs_list) < 5:
+        if 1 <= len(obs_list) and len(obs_list) < 7:
             # add empty vehicle to the observation
-            for _ in range(5 - len(obs_list)):
+            for _ in range(7 - len(obs_list)):
                 obs_list.append(np.copy(ChangeLaneEnv.EMPTY_VEHICLE))
         obs: np.ndarray = np.array(obs_list)
         return obs
