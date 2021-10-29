@@ -165,11 +165,13 @@ def train_dqn(env: DiscreteEnvironment,
     for curr_eps in range(dqn_config.n_episodes):
         state: State = env.reset()
         for cur_step in range(dqn_config.max_episode_steps):
-            next_state: State = _deep_q_step(env=env,
-                                             state=state,
-                                             dqn=dqn,
-                                             dqn_config=dqn_config,
-                                             buff=buff)
+            next_state, is_terminal = _deep_q_step(env=env,
+                                                   state=state,
+                                                   dqn=dqn,
+                                                   dqn_config=dqn_config,
+                                                   buff=buff)
+            if is_terminal:
+                break
             state = next_state
         if curr_eps % dqn_config.targ_update_episodes == 0:
             dqn._update_targ()
@@ -225,7 +227,8 @@ def eps_greedy_step(
 
 
 def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
-                 dqn_config: DQNConfig, buff: ReplayBuffer) -> State:
+                 dqn_config: DQNConfig,
+                 buff: ReplayBuffer) -> Tuple[State, bool]:
     """Step for deep q network
 
     Args:
@@ -236,7 +239,8 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
         buff (ReplayBuffer): The replay buffer.
 
     Returns:
-        State: The next state.
+        next_state (State): The next state.
+        is_termianl (bool): Whether next state is terminal.
     """
     dqn.eval()
     action, next_state, next_reward, is_terminal = eps_greedy_step(
@@ -262,4 +266,4 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
     error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
     error.backward()
     dqn.optimizer.step()
-    return next_state
+    return next_state, is_terminal
