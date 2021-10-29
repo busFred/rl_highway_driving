@@ -7,6 +7,8 @@ import torch
 from dataclasses_json import dataclass_json
 from torch import nn
 
+import numpy as np
+
 from ...mdps import mdp_utils
 from ...mdps.mdp_abc import DiscreteAction, DiscreteEnvironment, State
 from ...utils.replay_buff_utils import ReplayBuffer
@@ -284,7 +286,7 @@ def _eps_greedy_step(
         next_reward (float): The next reward.
         is_terminal (bool): Whether next state is terminal.
     """
-    is_random: bool = random.randint(0, 1) < dqn_config.epsilon
+    is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
     if is_random:
         action, next_state, next_reward, is_terminal = env.step_random()
         return action, next_state, next_reward, is_terminal
