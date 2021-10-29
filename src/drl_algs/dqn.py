@@ -111,7 +111,6 @@ class DQN:
         if self._targ_dqn is None:
             self._update_targ()
         self.dqn.train()
-        self.optimizer.zero_grad()
 
     def eval(self):
         """Set the dqn to eval mode.
@@ -138,11 +137,11 @@ class DQN:
         next_q_vals = next_q_vals.detach()
         # select next action greedily
         # (n_states, 1)
-        next_q_vals = next_q_vals.max(1)[0]
+        next_q_vals = next_q_vals.max(1, keepdim=True)[0]
         # current terminal states has no future reward
         next_q_vals[is_terminals] = 0.0
-        target_q_vals: torch.Tensor = next_rewards + dqn_config.discount * next_q_vals
         # (n_states, 1)
+        target_q_vals: torch.Tensor = next_rewards + dqn_config.discount * next_q_vals
         return target_q_vals
 
     def _update_targ(self):
@@ -212,12 +211,16 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
     states, actions, next_states, next_rewards, is_terminals = buff.sample_experiences(
         dqn_config.batch_size, dqn.dtype, dqn.device)
     dqn.train()
+    dqn.optimizer.zero_grad()
     target_q_vals: torch.Tensor = dqn._compute_target(
         next_states=next_states,
         next_rewards=next_rewards,
         is_terminals=is_terminals,
         dqn_config=dqn_config)
+    # (n_states, n_actions)
     pred_q_vals: torch.Tensor = dqn._predict_q_vals(states=states)
+    # (n_states, 1)
+    pred_q_vals = pred_q_vals.gather(1, actions)
     error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
     error.backward()
     dqn.optimizer.step()
@@ -245,6 +248,7 @@ def _eps_greedy_step(
     if is_random:
         action, next_state, next_reward, is_terminal = env.step_random()
         return action, next_state, next_reward, is_terminal
+    # (1, n_actions)
     next_q_vals: torch.Tensor = dqn.predict_q_vals(states=[state])
     action: DiscreteAction = env.int_to_action(next_q_vals.argmax(1)[0].item())
     next_state, next_reward, is_terminal = env.step(action)
