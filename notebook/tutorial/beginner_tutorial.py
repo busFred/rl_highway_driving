@@ -1,9 +1,7 @@
 #%%
-from typing import Dict, Union
+from typing import Dict
 import gym
 from highway_env.envs.highway_env import HighwayEnv
-from highway_env.envs.common.observation import observation_factory
-import matplotlib.pyplot as plt
 
 #%%
 CONFIG: Dict = {
