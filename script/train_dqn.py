@@ -60,12 +60,10 @@ def simulate(env: ChangeLaneEnv,
     curr_eps: int = 0
     # step until timeout occurs
     while curr_eps < dqn_config.max_episode_steps:
-        _, next_state, _, is_terminal = dqn_train.eps_greedy_step(
-            env=env,
-            state=state,
-            dqn=dqn,
-            dqn_config=dqn_config,
-            to_visualize=to_vis)
+        _, next_state, _, is_terminal = dqn_train.greedy_step(env=env,
+                                                              state=state,
+                                                              dqn=dqn,
+                                                              to_vis=to_vis)
         state = next_state
         curr_eps = curr_eps + 1
         if is_terminal:
