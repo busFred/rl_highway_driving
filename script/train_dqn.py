@@ -86,7 +86,9 @@ def main(args: Sequence[str]):
     env = ChangeLaneEnv()
     net = get_value_net()
     device = torch.device("cuda") if argv.use_gpu else torch.device("cpu")
-    dqn = dqn_train.DQN(dqn=net, optimizer=torch.optim.Adam(net.parameters()), device=device)
+    dqn = dqn_train.DQN(dqn=net,
+                        optimizer=torch.optim.Adam(net.parameters()),
+                        device=device)
     # configure n_episode
     dqn_config = dqn_train.DQNConfig(batch_size=1000)
     n_eps: int = 10
