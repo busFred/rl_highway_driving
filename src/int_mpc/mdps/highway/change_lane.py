@@ -48,10 +48,11 @@ class ChangeLaneEnv(DiscreteEnvironment):
     }
     EMPTY_VEHICLE: np.ndarray = np.array([0.0, 0.0, 0.0, 0.0])
 
-    # protected
+    # protected instance variables
     _env: HighwayEnv
     _config: Dict[str, Any]
 
+    # public methods
     def __init__(
         self,
         lanes_count: int = 4,
@@ -123,13 +124,14 @@ class ChangeLaneEnv(DiscreteEnvironment):
         mdp_state, reward, is_terminal = self.step(action, to_visualize)
         return action, mdp_state, reward, is_terminal
 
-    @overrides
-    def reset(self) -> State:
+    # @overrides
+    def reset(self) -> HighwayEnvState:
         """Reset the environment
 
         Returns:
             mdp_state (State): The next state after taking the passed in action.
         """
+        self._env.close()
         _ = self._env.reset()
         observation: np.ndarray = self._make_observation()
         mdp_state = HighwayEnvState(observation=observation,
@@ -146,7 +148,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         except:
             raise ValueError("unsupporeted int action")
 
-    # protected method
+    # protected methods
     def _make_observation(self) -> np.ndarray:
         """Make an observation based on the current vehicle state.
 
@@ -154,7 +156,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             ValueError: Raised when self._env.road.network is None or 
 
         Returns:
-            obs (np.ndarray): (7, 4) The current observation of the ego vehicle. The shape corresponds to 5 vehicles in total and 4 statistics of the vehicle.
+            obs (np.ndarray): (7, 4) The current observation of the ego vehicle. The shape corresponds to 7 vehicles in total and 4 statistics (x_pos, y_pos, x_vel, y_vel) of the vehicle.
         """
         # env is not properly constructed
         if self._env.road.network is None:
@@ -242,7 +244,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         # currently use the system built-in reward formula
         return env_reward
 
-    # protected static method
+    # protected static methods
     @staticmethod
     def _make_config(lanes_count: int, vehicles_count: int,
                      initial_spacing: float, reward_speed_range: Tuple[float,
