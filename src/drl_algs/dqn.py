@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass, field
-from typing import List, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -156,12 +156,24 @@ class DQN:
 def train_dqn(env: DiscreteEnvironment,
               dqn: DQN,
               dqn_config: DQNConfig,
-              to_visualize: bool = False):
+              replay_buffer: Optional[ReplayBuffer] = None) -> ReplayBuffer:
+    """Train the passed in DQN.
+
+    Args:
+        env (DiscreteEnvironment): The environment to be learned.
+        dqn (DQN): The dqn to be trained.
+        dqn_config (DQNConfig): The hyperparameter for the DQN.
+        replay_buffer (Optional[ReplayBuffer], optional): The replay buffer. Generated with random policy if None is provided. Defaults to None.
+
+    Returns:
+        ReplayBuffer: The current replay buffer.
+    """
     dqn.train()
-    buff: ReplayBuffer = ReplayBuffer.create_random_replay_buffer(
-        env,
-        max_size=dqn_config.max_buff_size,
-        target_size=dqn_config.max_buff_size)
+    if replay_buffer is None:
+        replay_buffer = ReplayBuffer.create_random_replay_buffer(
+            env,
+            max_size=dqn_config.max_buff_size,
+            target_size=dqn_config.max_buff_size)
     for curr_eps in range(dqn_config.n_episodes):
         state: State = env.reset()
         for cur_step in range(dqn_config.max_episode_steps):
@@ -169,27 +181,15 @@ def train_dqn(env: DiscreteEnvironment,
                                                    state=state,
                                                    dqn=dqn,
                                                    dqn_config=dqn_config,
-                                                   buff=buff)
+                                                   buff=replay_buffer)
             if is_terminal:
                 break
             state = next_state
         if curr_eps % dqn_config.targ_update_episodes == 0:
             dqn._update_targ()
-        if to_visualize:
-            state = env.reset()
-            dqn.eval()
-            is_terminal = False
-            while is_terminal == False:
-                _, next_state, _, is_terminal = eps_greedy_step(
-                    env=env,
-                    state=state,
-                    dqn=dqn,
-                    dqn_config=dqn_config,
-                    to_visualize=to_visualize)
-                state = next_state
-            dqn.train()
         print(str.format("episode: {}/{}", curr_eps + 1,
                          dqn_config.n_episodes))
+    return replay_buffer
 
 
 def eps_greedy_step(
@@ -244,7 +244,11 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
     """
     dqn.eval()
     action, next_state, next_reward, is_terminal = eps_greedy_step(
-        env=env, state=state, dqn=dqn, dqn_config=dqn_config)
+        env=env,
+        state=state,
+        dqn=dqn,
+        dqn_config=dqn_config,
+        to_visualize=False)
     buff.add_experience(state=state,
                         action=action,
                         next_state=next_state,
