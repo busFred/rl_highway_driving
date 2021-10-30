@@ -1,8 +1,9 @@
+wheel
 dataclasses-json
 overrides
 numpy
 scipy
 matplotlib
 torch
-gym
+gym[all]
 highway-env
