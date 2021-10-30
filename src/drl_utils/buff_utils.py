@@ -82,8 +82,10 @@ class ReplayBuffer:
         # is_terminals = is_terminals.expand(batch_size, 1)
         # convert datatype
         states = states.to(dtype=dtype, device=device)
+        actions = actions.to(device=device)
         next_rewards = next_rewards.to(dtype=dtype, device=device)
         next_states = next_states.to(dtype=dtype, device=device)
+        is_terminals = is_terminals.to(device=device)
         return states, actions, next_states, next_rewards, is_terminals
 
     def __len__(self):
