@@ -83,14 +83,15 @@ def simulate(env: ChangeLaneEnv,
 def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
     # dqn_config: dqn_train.DQNConfig = get_config(argv)
-    env = ChangeLaneEnv()
+    env = ChangeLaneEnv(vehicles_count=100)
     net = get_value_net()
     device = torch.device("cuda") if argv.use_gpu else torch.device("cpu")
     dqn = dqn_train.DQN(dqn=net,
                         optimizer=torch.optim.Adam(net.parameters()),
                         device=device)
     # configure n_episode
-    dqn_config = dqn_train.DQNConfig(batch_size=1000)
+    # dqn_config = dqn_train.DQNConfig(max_buff_size=200, batch_size=100)
+    dqn_config = dqn_train.DQNConfig(max_buff_size=2000, batch_size=1000)
     n_eps: int = 10
     n_iters: int = math.ceil(dqn_config.n_episodes / 10)
     dqn_config.n_episodes = n_eps
