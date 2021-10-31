@@ -177,7 +177,7 @@ def train_dqn(env: DiscreteEnvironment,
         replay_buffer = ReplayBuffer.create_random_replay_buffer(
             env,
             max_size=config.max_buff_size,
-            target_size=config.max_buff_size)
+            target_size=config.batch_size)
     for curr_eps in range(config.n_episodes):
         state: State = env.reset()
         for cur_step in range(config.max_episode_steps):
