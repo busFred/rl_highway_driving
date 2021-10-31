@@ -24,15 +24,13 @@ class ChangeLaneMetric:
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("--dqn_config_path", type=str, required=True)
-    parser.add_argument("--vehicles_counts",
+    parser.add_argument("--export_path", type=str, required=True)
+    parser.add_argument("--vehicles_count",
                         type=int,
-                        required=True,
                         default=200)
     parser.add_argument("--n_test_episodes",
                         type=int,
-                        required=True,
                         default=1000)
-    parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
     return parser
