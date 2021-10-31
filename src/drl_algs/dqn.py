@@ -15,6 +15,8 @@ from torch import nn
 @dataclass
 class DQNConfig:
     epsilon: float = field(default=0.5)
+    epsilon_decay: float = field(default=0.99)
+    epsilon_update_episodes: int = field(default=20)
     discount: float = field(default=1.0)
     n_episodes: int = field(default=1000)
     max_episode_steps: int = field(default=30)
@@ -161,34 +163,37 @@ def train_dqn(env: DiscreteEnvironment,
 
     Args:
         env (DiscreteEnvironment): The environment to be learned.
-        dqn (DQN): The dqn to be trained.
+        dqn (DQN): The dqn to be trained. Modified inplace.
         dqn_config (DQNConfig): The hyperparameter for the DQN.
         replay_buffer (Optional[ReplayBuffer], optional): The replay buffer. Generated with random policy if None is provided. Defaults to None.
 
     Returns:
         ReplayBuffer: The current replay buffer.
     """
+    # do not directly modify input configuration
+    config: DQNConfig = copy.deepcopy(dqn_config)
     dqn.train()
     if replay_buffer is None:
         replay_buffer = ReplayBuffer.create_random_replay_buffer(
             env,
-            max_size=dqn_config.max_buff_size,
-            target_size=dqn_config.max_buff_size)
-    for curr_eps in range(dqn_config.n_episodes):
+            max_size=config.max_buff_size,
+            target_size=config.max_buff_size)
+    for curr_eps in range(config.n_episodes):
         state: State = env.reset()
-        for cur_step in range(dqn_config.max_episode_steps):
+        for cur_step in range(config.max_episode_steps):
             next_state, is_terminal = _deep_q_step(env=env,
                                                    state=state,
                                                    dqn=dqn,
-                                                   dqn_config=dqn_config,
+                                                   dqn_config=config,
                                                    buff=replay_buffer)
             if is_terminal:
                 break
             state = next_state
-        if curr_eps % dqn_config.targ_update_episodes == 0:
+        if curr_eps % config.epsilon_update_episodes == 0:
+            config.epsilon = config.epsilon * config.epsilon_decay
+        if curr_eps % config.targ_update_episodes == 0:
             dqn._update_targ()
-        print(str.format("episode: {}/{}", curr_eps + 1,
-                         dqn_config.n_episodes))
+        print(str.format("episode: {}/{}", curr_eps + 1, config.n_episodes))
     return replay_buffer
 
 
