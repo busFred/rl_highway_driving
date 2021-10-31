@@ -18,7 +18,7 @@ from torch import nn
 class ChangeLaneMetric:
     distance_travel: float = field()
     terminated_crash: bool = field()
-    n_episodes_to_crash: float = field()
+    n_steps_to_crash: float = field()
 
 
 def create_argparse() -> ArgumentParser:
@@ -78,10 +78,10 @@ def simulate(env: ChangeLaneEnv,
     end_loc: float = state.observation[0, 0]
     distance_travel: float = end_loc - start_loc
     terminated_crash: bool = state.is_crashed
-    n_episodes_to_crash: int = curr_eps if terminated_crash else -1
+    n_steps_to_crash: int = curr_eps if terminated_crash else -1
     metric = ChangeLaneMetric(distance_travel=distance_travel,
                               terminated_crash=terminated_crash,
-                              n_episodes_to_crash=n_episodes_to_crash)
+                              n_steps_to_crash=n_steps_to_crash)
     return metric
 
 
