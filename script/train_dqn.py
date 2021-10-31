@@ -1,13 +1,13 @@
 import math
+import os
 import pickle
 import sys
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
-from typing import List, Sequence, Union
+from typing import List, Sequence
 
 import torch
 from drl_algs import dqn as dqn_train
-from drl_utils.buff_utils import ReplayBuffer
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
 from int_mpc.mdps.highway.highway_mdp import (HighwayEnvDiscreteAction,
                                               HighwayEnvState)
@@ -23,8 +23,18 @@ class ChangeLaneMetric:
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    # parser.add_argument("--dqn_config_path", type=str, required=True)
-    parser.add_argument("--use_gpu", action="store_true")
+    parser.add_argument("--dqn_config_path", type=str, required=True)
+    parser.add_argument("--vehicles_counts",
+                        type=int,
+                        required=True,
+                        default=200)
+    parser.add_argument("--n_test_episodes",
+                        type=int,
+                        required=True,
+                        default=1000)
+    parser.add_argument("--export_path", type=str, required=True)
+    parser.add_argument("--use_cuda", action="store_true")
+    parser.add_argument("--to_vis", action="store_true")
     return parser
 
 
@@ -34,8 +44,7 @@ def parse_args(args: Sequence[str]):
     return argv
 
 
-def get_config(argv: Namespace):
-    dqn_config_path: str = argv.dqn_config_path
+def get_config(dqn_config_path: str):
     dqn_config: dqn_train.DQNConfig
     with open(dqn_config_path, "r") as config_file:
         dqn_config = dqn_train.DQNConfig.from_json(config_file.read())
@@ -80,34 +89,30 @@ def simulate(env: ChangeLaneEnv,
 
 def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
-    # dqn_config: dqn_train.DQNConfig = get_config(argv)
-    env = ChangeLaneEnv(vehicles_count=100)
+    # create export path
+    os.makedirs(argv.export_path, exist_ok=True)
+    # configure environment
+    env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
+    # create dqn
     net = get_value_net()
-    device = torch.device("cuda") if argv.use_gpu else torch.device("cpu")
+    device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     dqn = dqn_train.DQN(dqn=net,
                         optimizer=torch.optim.Adam(net.parameters()),
                         device=device)
-    # configure n_episode
-    # dqn_config = dqn_train.DQNConfig(max_buff_size=200, batch_size=100)
-    dqn_config = dqn_train.DQNConfig(max_buff_size=2000, batch_size=1000)
-    n_eps: int = 10
-    n_iters: int = math.ceil(dqn_config.n_episodes / 10)
-    dqn_config.n_episodes = n_eps
-    replay_buffer: Union[ReplayBuffer, None] = None
-    metrics: List[List[ChangeLaneMetric]] = list()
-    for curr_eps in range(n_iters):
-        replay_buffer = dqn_train.train_dqn(env=env,
-                                            dqn=dqn,
-                                            dqn_config=dqn_config,
-                                            replay_buffer=replay_buffer)
-        curr_metrics: List[ChangeLaneMetric] = list()
-        for curr_sim_eps in range(n_eps):
-            metric = simulate(env=env,
-                              dqn=dqn,
-                              dqn_config=dqn_config,
-                              to_vis=True)
-            curr_metrics.append(metric)
-        metrics.append(curr_metrics)
+    # get configuration
+    dqn_config: dqn_train.DQNConfig = get_config(argv.dqn_config_path)
+    # train agent
+    dqn_train.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
+    # generate test stat.
+    metrics: List[ChangeLaneMetric] = list()
+    for curr_sim_eps in range(argv.n_test_episodes):
+        metric = simulate(env=env,
+                          dqn=dqn,
+                          dqn_config=dqn_config,
+                          to_vis=argv.to_vis)
+        metrics.append(metric)
+    metric_path: str = os.path.join(argv.export_path, "metrics.pkl")
+    model_path: str = os.path.join(argv.export_path, "model.pt")
     pickle.dump(metrics, open("metrics.pkl", "wb"))
     torch.save(dqn.dqn, "model.pt")
 
