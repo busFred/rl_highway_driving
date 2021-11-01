@@ -101,7 +101,10 @@ def main(args: Sequence[str]):
     dqn_config: dqn_train.DQNConfig = get_config(argv.dqn_config_path)
     # train agent
     dqn_train.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
-    # generate test stat.
+    # export model
+    model_path: str = os.path.join(argv.export_path, "model.pt")
+    torch.save(dqn.dqn, model_path)
+    # generate test metrics.
     metrics: List[ChangeLaneMetric] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
         metric = simulate(env=env,
@@ -109,10 +112,9 @@ def main(args: Sequence[str]):
                           dqn_config=dqn_config,
                           to_vis=argv.to_vis)
         metrics.append(metric)
+    # serialize metrics
     metric_path: str = os.path.join(argv.export_path, "metrics.pkl")
-    model_path: str = os.path.join(argv.export_path, "model.pt")
-    pickle.dump(metrics, open("metrics.pkl", "wb"))
-    torch.save(dqn.dqn, "model.pt")
+    pickle.dump(metrics, open(metric_path, "wb"))    
 
 
 if __name__ == "__main__":
