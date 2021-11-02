@@ -25,12 +25,8 @@ def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
-    parser.add_argument("--vehicles_count",
-                        type=int,
-                        default=200)
-    parser.add_argument("--n_test_episodes",
-                        type=int,
-                        default=1000)
+    parser.add_argument("--vehicles_count", type=int, default=200)
+    parser.add_argument("--n_test_episodes", type=int, default=1000)
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
     return parser
@@ -64,21 +60,21 @@ def simulate(env: ChangeLaneEnv,
     dqn.eval()
     state: HighwayEnvState = env.reset()
     start_loc: float = state.observation[0, 0]
-    curr_eps: int = 0
+    total_step: int = 0
     # step until timeout occurs
-    while curr_eps < dqn_config.max_episode_steps:
+    for curr_step in range(dqn_config.max_episode_steps):
         _, next_state, _, is_terminal = dqn_train.greedy_step(env=env,
                                                               state=state,
                                                               dqn=dqn,
                                                               to_vis=to_vis)
         state = next_state
-        curr_eps = curr_eps + 1
+        total_step = curr_step + 1
         if is_terminal:
             break
     end_loc: float = state.observation[0, 0]
     distance_travel: float = end_loc - start_loc
     terminated_crash: bool = state.is_crashed
-    n_steps_to_crash: int = curr_eps if terminated_crash else -1
+    n_steps_to_crash: int = total_step if terminated_crash else -1
     metric = ChangeLaneMetric(distance_travel=distance_travel,
                               terminated_crash=terminated_crash,
                               n_steps_to_crash=n_steps_to_crash)
@@ -107,6 +103,7 @@ def main(args: Sequence[str]):
     # generate test metrics.
     metrics: List[ChangeLaneMetric] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
+        print(str.format("val {}/{}", curr_sim_eps, argv.n_test_episodes))
         metric = simulate(env=env,
                           dqn=dqn,
                           dqn_config=dqn_config,
@@ -114,7 +111,7 @@ def main(args: Sequence[str]):
         metrics.append(metric)
     # serialize metrics
     metric_path: str = os.path.join(argv.export_path, "metrics.pkl")
-    pickle.dump(metrics, open(metric_path, "wb"))    
+    pickle.dump(metrics, open(metric_path, "wb"))
 
 
 if __name__ == "__main__":
