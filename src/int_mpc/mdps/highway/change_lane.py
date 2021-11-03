@@ -47,6 +47,8 @@ class ChangeLaneEnv(DiscreteEnvironment):
         "offscreen_rendering": False
     }
     EMPTY_VEHICLE: np.ndarray = np.array([0.0, 0.0, 0.0, 0.0])
+    N_ACTIONS: int = len(HighwayEnvDiscreteAction)
+    STATES_SHAPE: np.ndarray = np.array([7, 4], dtype=np.uint)
 
     # protected instance variables
     _env: HighwayEnv
