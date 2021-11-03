@@ -91,6 +91,9 @@ def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
     # create export path
     os.makedirs(argv.export_metric_dir, exist_ok=True)
+    screenshot_dir_path: str = os.path.join(argv.export_metric_dir,
+                                            "crash_screenshot")
+    os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
@@ -107,10 +110,10 @@ def main(args: Sequence[str]):
                           to_vis=argv.to_vis)
         if metric is not None and argv.export_metric_dir is not None:
             screenshot_path: str = os.path.join(
-                argv.export_metric_dir, "crash_screenshot",
-                str.format("eps_{}.png", curr_sim_eps))
+                screenshot_dir_path, str.format("eps_{}.png", curr_sim_eps))
             plt.plot(metric.screenshot)
             plt.savefig(screenshot_path)
+            plt.close()
         metrics.append(metric)
     # serialize metrics
     if argv.export_metric_dir is not None:
