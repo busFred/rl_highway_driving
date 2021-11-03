@@ -105,6 +105,12 @@ def main(args: Sequence[str]):
                           dqn=dqn,
                           max_episode_steps=argv.max_episode_steps,
                           to_vis=argv.to_vis)
+        if metric is not None and argv.export_metric_dir is not None:
+            screenshot_path: str = os.path.join(
+                argv.export_metric_dir, "crash_screenshot",
+                str.format("eps_{}.png", curr_sim_eps))
+            plt.plot(metric.screenshot)
+            plt.savefig(screenshot_path)
         metrics.append(metric)
     # serialize metrics
     if argv.export_metric_dir is not None:
