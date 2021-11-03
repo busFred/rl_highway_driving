@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 
-from ..mdps.highway.change_lane import ChangeLaneEnv
+from ...mdps.highway.change_lane import ChangeLaneEnv
 
 
 class LinearDQN(nn.Module):

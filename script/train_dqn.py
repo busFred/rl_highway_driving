@@ -7,7 +7,7 @@ from typing import Sequence
 import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
-from int_mpc.nnet.dqn import LinearDQN
+from int_mpc.nnet.change_lane.dqn import LinearDQN
 
 
 @dataclass
