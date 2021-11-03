@@ -9,7 +9,6 @@ import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
 from int_mpc.mdps.highway.highway_mdp import HighwayEnvState
-from int_mpc.nnet.dqn import LinearDQN
 
 
 @dataclass
@@ -21,9 +20,17 @@ class ChangeLaneMetric:
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--dqn_config_path", type=str, required=True)
-    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--model_path",
+                        type=str,
+                        required=True,
+                        help="path to the serialized dqn")
+    parser.add_argument(
+        "--export_metric_dir",
+        type=str,
+        default=None,
+        help="path to the directory containing exported metric")
     parser.add_argument("--vehicles_count", type=int, default=200)
+    parser.add_argument("--max_episode_steps", type=int, default=50)
     parser.add_argument("--n_test_episodes", type=int, default=1000)
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
@@ -43,28 +50,20 @@ def get_config(dqn_config_path: str):
     return dqn_config
 
 
-# def get_value_net() -> nn.Module:
-#     model = nn.Sequential(nn.Flatten(1, -1), nn.Linear(28, 100), nn.ReLU(),
-#                           nn.Linear(100, 100), nn.ReLU(), nn.Linear(100, 100),
-#                           nn.ReLU(),
-#                           nn.Linear(100, len(HighwayEnvDiscreteAction)))
-#     return model
-
-
 def simulate(env: ChangeLaneEnv,
              dqn: alg_dqn.DQN,
-             dqn_config: alg_dqn.DQNConfig,
+             max_episode_steps: int,
              to_vis: bool = True) -> ChangeLaneMetric:
     dqn.eval()
     state: HighwayEnvState = env.reset()
     start_loc: float = state.observation[0, 0]
     total_step: int = 0
     # step until timeout occurs
-    for curr_step in range(dqn_config.max_episode_steps):
+    for curr_step in range(max_episode_steps):
         _, next_state, _, is_terminal = alg_dqn.greedy_step(env=env,
-                                                              state=state,
-                                                              dqn=dqn,
-                                                              to_vis=to_vis)
+                                                            state=state,
+                                                            dqn=dqn,
+                                                            to_vis=to_vis)
         state = next_state
         total_step = curr_step + 1
         if is_terminal:
@@ -82,27 +81,26 @@ def simulate(env: ChangeLaneEnv,
 def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
     # create export path
-    os.makedirs(argv.export_path, exist_ok=True)
+    os.makedirs(argv.export_metric_dir, exist_ok=True)
     # configure environment
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
     net = torch.load(argv.model_path)
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     dqn = alg_dqn.DQN(dqn=net, device=device)
-    # get configuration
-    dqn_config: alg_dqn.DQNConfig = get_config(argv.dqn_config_path)
     # generate test metrics.
     metrics: List[ChangeLaneMetric] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
-        print(str.format("val {}/{}", curr_sim_eps, argv.n_test_episodes))
+        print(str.format("val {}/{}", curr_sim_eps + 1, argv.n_test_episodes))
         metric = simulate(env=env,
                           dqn=dqn,
-                          dqn_config=dqn_config,
+                          max_episode_steps=argv.max_episode_steps,
                           to_vis=argv.to_vis)
         metrics.append(metric)
     # serialize metrics
-    metric_path: str = os.path.join(argv.export_path, "metrics.pkl")
-    pickle.dump(metrics, open(metric_path, "wb"))
+    if argv.export_metric_dir is not None:
+        metric_path: str = os.path.join(argv.export_metric_dir, "metrics.pkl")
+        pickle.dump(metrics, open(metric_path, "wb"))
 
 
 if __name__ == "__main__":
