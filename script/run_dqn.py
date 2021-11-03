@@ -108,10 +108,10 @@ def main(args: Sequence[str]):
                           dqn=dqn,
                           max_episode_steps=argv.max_episode_steps,
                           to_vis=argv.to_vis)
-        if metric is not None and argv.export_metric_dir is not None:
+        if metric.screenshot is not None and argv.export_metric_dir is not None:
             screenshot_path: str = os.path.join(
                 screenshot_dir_path, str.format("eps_{}.png", curr_sim_eps))
-            plt.plot(metric.screenshot)
+            plt.imshow(metric.screenshot)
             plt.savefig(screenshot_path)
             plt.close()
         metrics.append(metric)
