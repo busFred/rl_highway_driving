@@ -3,12 +3,17 @@ import pickle
 import sys
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
-from typing import List, Sequence
+from typing import List, Optional, Sequence, Union
 
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
 from int_mpc.mdps.highway.highway_mdp import HighwayEnvState
+
+matplotlib.use("agg")
 
 
 @dataclass
@@ -16,6 +21,7 @@ class ChangeLaneMetric:
     distance_travel: float = field()
     terminated_crash: bool = field()
     n_steps_to_crash: float = field()
+    screenshot: Optional[np.ndarray] = field(default=None)
 
 
 def create_argparse() -> ArgumentParser:
@@ -72,9 +78,12 @@ def simulate(env: ChangeLaneEnv,
     distance_travel: float = end_loc - start_loc
     terminated_crash: bool = state.is_crashed
     n_steps_to_crash: int = total_step if terminated_crash else -1
+    screenshot: Union[np.ndarray, None] = env._env.render(
+        mode="rgb_array") if terminated_crash else None
     metric = ChangeLaneMetric(distance_travel=distance_travel,
                               terminated_crash=terminated_crash,
-                              n_steps_to_crash=n_steps_to_crash)
+                              n_steps_to_crash=n_steps_to_crash,
+                              screenshot=screenshot)
     return metric
 
 
