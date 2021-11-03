@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import List, Sequence
 
 import torch
-from drl_algs import dqn as dqn_train
+from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
 from int_mpc.mdps.highway.highway_mdp import (HighwayEnvDiscreteAction,
                                               HighwayEnvState)
@@ -40,9 +40,9 @@ def parse_args(args: Sequence[str]):
 
 
 def get_config(dqn_config_path: str):
-    dqn_config: dqn_train.DQNConfig
+    dqn_config: alg_dqn.DQNConfig
     with open(dqn_config_path, "r") as config_file:
-        dqn_config = dqn_train.DQNConfig.from_json(config_file.read())
+        dqn_config = alg_dqn.DQNConfig.from_json(config_file.read())
     return dqn_config
 
 
@@ -55,8 +55,8 @@ def get_config(dqn_config_path: str):
 
 
 def simulate(env: ChangeLaneEnv,
-             dqn: dqn_train.DQN,
-             dqn_config: dqn_train.DQNConfig,
+             dqn: alg_dqn.DQN,
+             dqn_config: alg_dqn.DQNConfig,
              to_vis: bool = True) -> ChangeLaneMetric:
     dqn.eval()
     state: HighwayEnvState = env.reset()
@@ -64,7 +64,7 @@ def simulate(env: ChangeLaneEnv,
     total_step: int = 0
     # step until timeout occurs
     for curr_step in range(dqn_config.max_episode_steps):
-        _, next_state, _, is_terminal = dqn_train.greedy_step(env=env,
+        _, next_state, _, is_terminal = alg_dqn.greedy_step(env=env,
                                                               state=state,
                                                               dqn=dqn,
                                                               to_vis=to_vis)
@@ -91,13 +91,13 @@ def main(args: Sequence[str]):
     # create dqn
     net = LinearDQN()
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
-    dqn = dqn_train.DQN(dqn=net,
+    dqn = alg_dqn.DQN(dqn=net,
                         optimizer=torch.optim.Adam(net.parameters()),
                         device=device)
     # get configuration
-    dqn_config: dqn_train.DQNConfig = get_config(argv.dqn_config_path)
+    dqn_config: alg_dqn.DQNConfig = get_config(argv.dqn_config_path)
     # train agent
-    dqn_train.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
+    alg_dqn.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
     # export model
     model_path: str = os.path.join(argv.export_path, "model.pt")
     torch.save(dqn.dqn, model_path)
