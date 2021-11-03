@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from drl_algs import dqn as alg_dqn
-from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
-from int_mpc.mdps.highway.highway_mdp import HighwayEnvState
+from int_mpc.mdps.change_lane import ChangeLaneEnv
+from int_mpc.mdps.highway_mdp import HighwayEnvState
 
 matplotlib.use("agg")
 
