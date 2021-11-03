@@ -11,6 +11,7 @@ from drl_algs import dqn as dqn_train
 from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
 from int_mpc.mdps.highway.highway_mdp import (HighwayEnvDiscreteAction,
                                               HighwayEnvState)
+from int_mpc.nnet.dqn import LinearDQN
 from torch import nn
 
 
@@ -45,12 +46,12 @@ def get_config(dqn_config_path: str):
     return dqn_config
 
 
-def get_value_net() -> nn.Module:
-    model = nn.Sequential(nn.Flatten(1, -1), nn.Linear(28, 100), nn.ReLU(),
-                          nn.Linear(100, 100), nn.ReLU(), nn.Linear(100, 100),
-                          nn.ReLU(),
-                          nn.Linear(100, len(HighwayEnvDiscreteAction)))
-    return model
+# def get_value_net() -> nn.Module:
+#     model = nn.Sequential(nn.Flatten(1, -1), nn.Linear(28, 100), nn.ReLU(),
+#                           nn.Linear(100, 100), nn.ReLU(), nn.Linear(100, 100),
+#                           nn.ReLU(),
+#                           nn.Linear(100, len(HighwayEnvDiscreteAction)))
+#     return model
 
 
 def simulate(env: ChangeLaneEnv,
@@ -88,7 +89,7 @@ def main(args: Sequence[str]):
     # configure environment
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
-    net = get_value_net()
+    net = LinearDQN()
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     dqn = dqn_train.DQN(dqn=net,
                         optimizer=torch.optim.Adam(net.parameters()),
