@@ -1,16 +1,31 @@
 import random
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
+from dataclasses_json import dataclass_json
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
-from mdps.mdp_abc import DiscreteEnvironment, State
 from overrides import overrides
+
+from mdps.mdp_abc import DiscreteEnvironment, State
 
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
+
+
+@dataclass_json
+@dataclass
+class ChangeLaneConfig:
+    lanes_count: int = field(default=4)
+    vehicles_count: int = field(default=50)
+    initial_spacing: float = field(default=1.0)
+    alpha: float = field(default=0.4)
+    beta: float = field(default=-1.0)
+    reward_speed_range: Tuple[float, float] = field(
+        default_factory=lambda: (20.0, 30.0))
 
 
 class ChangeLaneEnv(DiscreteEnvironment):
@@ -60,9 +75,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self,
         lanes_count: int = 4,
         vehicles_count: int = 50,
-        initial_spacing: float = 1,
+        initial_spacing: float = 1.0,
         alpha: float = 0.4,
-        beta: float = -1,
+        beta: float = -1.0,
         reward_speed_range: Tuple[float, float] = (20, 30)
     ) -> None:
         """Constructor for ChangeLaneEnv
