@@ -31,6 +31,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         "vehicles_count": 50,
         "duration": 40,  # [s]
         "initial_spacing": 2,
+        "high_speed_reward": 0.4,
         # The reward received when colliding with a vehicle.
         "collision_reward": -1,
         # [m/s] The reward for high speed is mapped linearly from this range to [0, HighwayEnv.HIGH_SPEED_REWARD].
@@ -60,13 +61,27 @@ class ChangeLaneEnv(DiscreteEnvironment):
         lanes_count: int = 4,
         vehicles_count: int = 50,
         initial_spacing: float = 1,
+        alpha: float = 0.4,
+        beta: float = -1,
         reward_speed_range: Tuple[float, float] = (20, 30)
     ) -> None:
+        """Constructor for ChangeLaneEnv
+
+        Args:
+            lanes_count (int, optional): Number of lanes in the environment. Defaults to 4.
+            vehicles_count (int, optional): The total number of vehicles in the environment. Defaults to 50.
+            initial_spacing (float, optional): The initial spacing between vehicles. Defaults to 1.
+            alpha (float, optional): The magnitude to encourge fast speed. Defaults to 0.4.
+            beta (float, optional): The reward signal when having collision with other vehicles. Should be negative real number. Defaults to -1.
+            reward_speed_range (Tuple[float, float], optional): The range of speed that is encouraged. Defaults to (20, 30).
+        """
         super().__init__()
         self._config = ChangeLaneEnv._make_config(
             lanes_count=lanes_count,
             vehicles_count=vehicles_count,
             initial_spacing=initial_spacing,
+            alpha=alpha,
+            beta=beta,
             reward_speed_range=reward_speed_range)
         self._env = highway_mdp.make_highway_env(config=self._config)
 
@@ -249,11 +264,13 @@ class ChangeLaneEnv(DiscreteEnvironment):
     # protected static methods
     @staticmethod
     def _make_config(lanes_count: int, vehicles_count: int,
-                     initial_spacing: float, reward_speed_range: Tuple[float,
-                                                                       float]):
+                     initial_spacing: float, alpha: float, beta: float,
+                     reward_speed_range: Tuple[float, float]):
         config: Dict[str, Any] = deepcopy(ChangeLaneEnv.DEFAULT_CONFIG)
         config["lanes_count"] = lanes_count
         config["vehicles_count"] = vehicles_count
         config["initial_spacing"] = initial_spacing
+        config["high_speed_reward"] = alpha
+        config["collision_reward"] = beta
         config["reward_speed_range"] = reward_speed_range
         return config
