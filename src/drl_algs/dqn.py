@@ -14,10 +14,10 @@ from torch import nn
 @dataclass_json
 @dataclass
 class DQNConfig:
+    discount: float = field(default=1.0)
     epsilon: float = field(default=0.5)
     epsilon_decay: float = field(default=0.99)
     epsilon_update_episodes: int = field(default=20)
-    discount: float = field(default=1.0)
     n_episodes: int = field(default=1000)
     max_episode_steps: int = field(default=30)
     max_buff_size: int = field(default=10000)
