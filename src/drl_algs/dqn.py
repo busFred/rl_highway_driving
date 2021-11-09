@@ -241,12 +241,14 @@ def _eps_greedy_step(
     """
     is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
     if is_random:
-        action, next_state, next_reward, is_terminal = env.step_random(
-            to_visualize=False)
+        # ignore type error
+        action: DiscreteAction = env.get_random_policy().sample_action(state)
+        next_state, next_reward, is_terminal = env.step(action,
+                                                        to_visualize=False)
         return action, next_state, next_reward, is_terminal
     # (1, n_actions)
     next_q_vals: torch.Tensor = dqn.predict_q_vals(states=[state])
-    action: DiscreteAction = env.int_to_action(next_q_vals.argmax(1)[0].item())
+    action = env.int_to_action(next_q_vals.argmax(1)[0].item())
     next_state, next_reward, is_terminal = env.step(action, to_visualize=False)
     return action, next_state, next_reward, is_terminal
 

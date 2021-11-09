@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Tuple
 
 import numpy as np
 from overrides.overrides import overrides
+
+from .policy_abc import PolicyBase
 
 
 class Action(ABC):
@@ -48,6 +51,11 @@ class State(ABC):
         pass
 
 
+@dataclass
+class Metrics(ABC):
+    pass
+
+
 class Environment(ABC):
     @abstractmethod
     def step(self,
@@ -66,23 +74,22 @@ class Environment(ABC):
         """
         pass
 
-    @abstractmethod
-    def step_random(
-            self,
-            to_visualize: bool = False) -> Tuple[Action, State, float, bool]:
-        """Take a random action.
+    # @abstractmethod
+    # def step_random(
+    #         self,
+    #         to_visualize: bool = False) -> Tuple[Action, State, float, bool]:
+    #     """Take a random action.
 
-        Args:
-            to_visualize (bool): Whether to render the visualization.
+    #     Args:
+    #         to_visualize (bool): Whether to render the visualization.
 
-
-        Returns:
-            action (Action): The random action being taken.
-            next_state (State): The next state after taking the passed in action.
-            reward (float): The reward associated with the state.
-            is_terminal (bool): Whether or not the state is terminal.
-        """
-        pass
+    #     Returns:
+    #         action (Action): The random action being taken.
+    #         next_state (State): The next state after taking the passed in action.
+    #         reward (float): The reward associated with the state.
+    #         is_terminal (bool): Whether or not the state is terminal.
+    #     """
+    #     pass
 
     @abstractmethod
     def reset(self) -> State:
@@ -90,6 +97,24 @@ class Environment(ABC):
 
         Returns:
             state (State): Returns the state of the new environment.
+        """
+        pass
+
+    @abstractmethod
+    def calculate_metrics(self) -> Metrics:
+        """Calculate the metrics of the episode that just terminated.
+
+        Returns:
+            metrics (Metrics): The metrics at the end of the episode.
+        """
+        pass
+
+    @abstractmethod
+    def get_random_policy(self) -> PolicyBase:
+        """Get the random policy for the current enviornment.
+
+        Returns:
+            policy (PolicyBase): The random policy.
         """
         pass
 
@@ -102,23 +127,23 @@ class DiscreteEnvironment(Environment):
              to_visualize: bool = False) -> Tuple[State, float, bool]:
         pass
 
-    @abstractmethod
-    # @overrides
-    def step_random(
-        self,
-        to_visualize: bool = False
-    ) -> Tuple[DiscreteAction, State, float, bool]:
-        """Take a random action.
+    # @abstractmethod
+    # # @overrides
+    # def step_random(
+    #     self,
+    #     to_visualize: bool = False
+    # ) -> Tuple[DiscreteAction, State, float, bool]:
+    #     """Take a random action.
 
-        to_visualize (bool): Whether to render the visualization.
+    #     to_visualize (bool): Whether to render the visualization.
 
-        Returns:
-            action (Action): The random action being taken.
-            next_state (State): The next state after taking the passed in action.
-            reward (float): The reward associated with the state.
-            is_terminal (bool): Whether or not the state is terminal.
-        """
-        pass
+    #     Returns:
+    #         action (Action): The random action being taken.
+    #         next_state (State): The next state after taking the passed in action.
+    #         reward (float): The reward associated with the state.
+    #         is_terminal (bool): Whether or not the state is terminal.
+    #     """
+    #     pass
 
     @abstractmethod
     def int_to_action(self, action: int) -> "DiscreteAction":

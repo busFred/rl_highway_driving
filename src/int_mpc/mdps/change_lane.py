@@ -1,16 +1,17 @@
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from dataclasses_json import dataclass_json
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
-from overrides import overrides
+from overrides.overrides import overrides
 
-from mdps.mdp_abc import DiscreteEnvironment, State
+from mdps.mdp_abc import DiscreteEnvironment, Metrics
+from mdps.policy_abc import PolicyBase
 
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
@@ -28,7 +29,29 @@ class ChangeLaneConfig:
         default_factory=lambda: (20.0, 30.0))
 
 
+@dataclass
+class ChangeLaneMetrics(Metrics):
+    distance_travel: float = field()
+    terminated_crash: bool = field()
+    n_steps_to_crash: float = field()
+    screenshot: Optional[np.ndarray] = field(default=None)
+
+
 class ChangeLaneEnv(DiscreteEnvironment):
+    class ChangeLaneRandomPolicy(PolicyBase):
+
+        _env: "ChangeLaneEnv"
+
+        def __init__(self, env: "ChangeLaneEnv"):
+            super().__init__()
+            self._env = env
+
+        # @overrides
+        def sample_action(self,
+                          state: HighwayEnvState) -> HighwayEnvDiscreteAction:
+            all_actions = list(HighwayEnvDiscreteAction)
+            action: HighwayEnvDiscreteAction = random.choice(all_actions)
+            return action
 
     # static const
     DEFAULT_CONFIG: Dict[str, Any] = {
@@ -69,6 +92,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
     # protected instance variables
     _env: HighwayEnv
     _config: Dict[str, Any]
+    _total_steps: int
+    _start_state: Union[HighwayEnvState, None]
+    _end_state: Union[HighwayEnvState, None]
 
     # public methods
     def __init__(
@@ -99,6 +125,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
             beta=beta,
             reward_speed_range=reward_speed_range)
         self._env = highway_mdp.make_highway_env(config=self._config)
+        self._total_steps = 0
+        self._start_state = None
+        self._end_state = None
 
     # @overrides
     def step(
@@ -128,33 +157,34 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     speed=info["speed"],
                                     is_crashed=info["crashed"],
                                     cost=info["cost"])
+        self._total_steps = self._total_steps + 1
+        self._end_state = deepcopy(mdp_state)
         if to_visualize:
             self._env.render()
         return mdp_state, reward, is_terminal
 
     # @overrides
-    def step_random(
-        self,
-        to_visualize: bool = False
-    ) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
-        """Take a random action.
+    # def step_random(
+    #     self,
+    #     to_visualize: bool = False
+    # ) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
+    #     """Take a random action.
 
-        The action ~ multinomial(n=1, p_vals=[1/5]*5).
+    #     The action ~ multinomial(n=1, p_vals=[1/5]*5).
 
-        Args:
-            to_visualize (bool): Whether to render the visualization.
+    #     Args:
+    #         to_visualize (bool): Whether to render the visualization.
 
-
-        Returns:
-            action (HighwayEnvDiscreteAction): The action being taken.
-            mdp_state (State): The next state after taking the passed in action.
-            reward (float): The reward associated with the state.
-            is_terminal (bool): Whether or not the state is terminal.
-        """
-        all_actions = list(HighwayEnvDiscreteAction)
-        action: HighwayEnvDiscreteAction = random.choice(all_actions)
-        mdp_state, reward, is_terminal = self.step(action, to_visualize)
-        return action, mdp_state, reward, is_terminal
+    #     Returns:
+    #         action (HighwayEnvDiscreteAction): The action being taken.
+    #         mdp_state (State): The next state after taking the passed in action.
+    #         reward (float): The reward associated with the state.
+    #         is_terminal (bool): Whether or not the state is terminal.
+    #     """
+    #     all_actions = list(HighwayEnvDiscreteAction)
+    #     action: HighwayEnvDiscreteAction = random.choice(all_actions)
+    #     mdp_state, reward, is_terminal = self.step(action, to_visualize)
+    #     return action, mdp_state, reward, is_terminal
 
     # @overrides
     def reset(self) -> HighwayEnvState:
@@ -170,15 +200,41 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     speed=-1.0,
                                     is_crashed=False,
                                     cost=-1.0)
+        self._total_steps = 0
+        self._start_state = deepcopy(mdp_state)
+        self._end_state = None
         return mdp_state
 
-    @overrides
+    # @overrides
     def int_to_action(self, action: int) -> HighwayEnvDiscreteAction:
         try:
             act = HighwayEnvDiscreteAction(action)
             return act
         except:
             raise ValueError("unsupporeted int action")
+
+    # @overrides
+    def calculate_metrics(self) -> ChangeLaneMetrics:
+        if self._start_state is None:
+            raise ValueError("begin state initialized properly")
+        if self._end_state is None:
+            raise ValueError("end state not initialized")
+        start_loc: float = self._start_state.observation[0, 0]
+        end_loc: float = self._end_state.observation[0, 0]
+        distance_travel: float = end_loc - start_loc
+        terminated_crash: bool = self._end_state.is_crashed
+        n_steps_to_crash: int = self._total_steps if terminated_crash else -1
+        screenshot: Union[np.ndarray, None] = self._env.render(
+            mode="rgb_array") if terminated_crash else None
+        metrics = ChangeLaneMetrics(distance_travel=distance_travel,
+                                    terminated_crash=terminated_crash,
+                                    n_steps_to_crash=n_steps_to_crash,
+                                    screenshot=screenshot)
+        return metrics
+
+    # @overrides
+    def get_random_policy(self) -> ChangeLaneRandomPolicy:
+        return ChangeLaneEnv.ChangeLaneRandomPolicy(self)
 
     # protected methods
     def _make_observation(self) -> np.ndarray:

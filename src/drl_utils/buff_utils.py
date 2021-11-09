@@ -107,7 +107,9 @@ class ReplayBuffer:
         replay_buffer = ReplayBuffer(max_size)
         state: State = env.reset()
         while len(replay_buffer) < target_size:
-            action, next_state, next_reward, is_terminal = env.step_random()
+            action: Action = env.get_random_policy().sample_action(state)
+            next_state, next_reward, is_terminal = env.step(action=action,
+                                                            to_visualize=False)
             replay_buffer.add_experience(state=state,
                                          action=action,
                                          next_state=next_state,
