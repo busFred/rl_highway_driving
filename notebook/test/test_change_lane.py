@@ -1,13 +1,16 @@
 #%%
-from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
+from int_mpc.mdps.change_lane import ChangeLaneEnv
 
 #%%
 env = ChangeLaneEnv()
 
 #%%
+state = env.reset()
+policy = env.get_random_policy()
 for _ in range(10):
-    action, state, reward, is_terminal = env.step_random(to_visualize=True)
+    action = policy.sample_action(state)
+    state, reward, is_terminal = env.step(action=action, to_visualize=True)
     if is_terminal:
-        env.reset()
+        state = env.reset()
 print("done")
 # %%
