@@ -10,18 +10,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from drl_algs import dqn as alg_dqn
-from int_mpc.mdps.change_lane import ChangeLaneEnv
-from int_mpc.mdps.highway_mdp import HighwayEnvState
+from int_mpc.mdps.change_lane import ChangeLaneEnv, ChangeLaneMetrics
+from int_mpc.mdps.highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
+from mdps.mdp_utils import simulate
 
 matplotlib.use("agg")
-
-
-@dataclass
-class ChangeLaneMetric:
-    distance_travel: float = field()
-    terminated_crash: bool = field()
-    n_steps_to_crash: float = field()
-    screenshot: Optional[np.ndarray] = field(default=None)
 
 
 def create_argparse() -> ArgumentParser:
@@ -31,7 +24,7 @@ def create_argparse() -> ArgumentParser:
                         required=True,
                         help="path to the serialized dqn")
     parser.add_argument(
-        "--export_metric_dir",
+        "--export_metrics_dir",
         type=str,
         default=None,
         help="path to the directory containing exported metric")
@@ -56,69 +49,43 @@ def get_config(dqn_config_path: str):
     return dqn_config
 
 
-def simulate(env: ChangeLaneEnv,
-             dqn: alg_dqn.DQN,
-             max_episode_steps: int,
-             to_vis: bool = True) -> ChangeLaneMetric:
-    dqn.eval()
-    state: HighwayEnvState = env.reset()
-    start_loc: float = state.observation[0, 0]
-    total_step: int = 0
-    # step until timeout occurs
-    for curr_step in range(max_episode_steps):
-        _, next_state, _, is_terminal = alg_dqn.greedy_step(env=env,
-                                                            state=state,
-                                                            dqn=dqn,
-                                                            to_vis=to_vis)
-        state = next_state
-        total_step = curr_step + 1
-        if is_terminal:
-            break
-    end_loc: float = state.observation[0, 0]
-    distance_travel: float = end_loc - start_loc
-    terminated_crash: bool = state.is_crashed
-    n_steps_to_crash: int = total_step if terminated_crash else -1
-    screenshot: Union[np.ndarray, None] = env._env.render(
-        mode="rgb_array") if terminated_crash else None
-    metric = ChangeLaneMetric(distance_travel=distance_travel,
-                              terminated_crash=terminated_crash,
-                              n_steps_to_crash=n_steps_to_crash,
-                              screenshot=screenshot)
-    return metric
-
-
 def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
     # create export path
-    os.makedirs(argv.export_metric_dir, exist_ok=True)
-    screenshot_dir_path: str = os.path.join(argv.export_metric_dir,
-                                            "crash_screenshot")
-    os.makedirs(screenshot_dir_path, exist_ok=True)
+    screenshot_dir_path: Optional[str] = None
+    if argv.export_metrics_dir is not None:
+        os.makedirs(argv.export_metrics_dir, exist_ok=True)
+        screenshot_dir_path = os.path.join(argv.export_metrics_dir,
+                                           "crash_screenshot")
+        os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
     net = torch.load(argv.model_path)
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     dqn = alg_dqn.DQN(dqn=net, device=device)
+    policy = alg_dqn.GreedyDQNPolicy[HighwayEnvState,
+                                     HighwayEnvDiscreteAction](dqn=dqn)
     # generate test metrics.
-    metrics: List[ChangeLaneMetric] = list()
+    metrics_l: List[ChangeLaneMetrics] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
         print(str.format("val {}/{}", curr_sim_eps + 1, argv.n_test_episodes))
-        metric = simulate(env=env,
-                          dqn=dqn,
-                          max_episode_steps=argv.max_episode_steps,
-                          to_vis=argv.to_vis)
-        if metric.screenshot is not None and argv.export_metric_dir is not None:
+        metrics: ChangeLaneMetrics = simulate(
+            env=env,
+            policy=policy,
+            max_episode_steps=argv.max_episode_steps,
+            to_visualize=argv.to_vis)
+        if metrics.screenshot is not None and argv.export_metrics_dir is not None and screenshot_dir_path is not None:
             screenshot_path: str = os.path.join(
                 screenshot_dir_path, str.format("eps_{}.png", curr_sim_eps))
-            plt.imshow(metric.screenshot)
+            plt.imshow(metrics.screenshot)
             plt.savefig(screenshot_path)
             plt.close()
-        metrics.append(metric)
+        metrics_l.append(metrics)
     # serialize metrics
-    if argv.export_metric_dir is not None:
-        metric_path: str = os.path.join(argv.export_metric_dir, "metrics.pkl")
-        pickle.dump(metrics, open(metric_path, "wb"))
+    if argv.export_metrics_dir is not None:
+        metric_path: str = os.path.join(argv.export_metrics_dir, "metrics.pkl")
+        pickle.dump(metrics_l, open(metric_path, "wb"))
 
 
 if __name__ == "__main__":

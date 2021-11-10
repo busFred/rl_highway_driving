@@ -1,20 +1,12 @@
 import os
 import sys
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass, field
 from typing import Sequence
 
 import torch
 from drl_algs import dqn as alg_dqn
-from int_mpc.mdps.highway.change_lane import ChangeLaneEnv
+from int_mpc.mdps.change_lane import ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN
-
-
-@dataclass
-class ChangeLaneMetric:
-    distance_travel: float = field()
-    terminated_crash: bool = field()
-    n_steps_to_crash: float = field()
 
 
 def create_argparse() -> ArgumentParser:
