@@ -5,6 +5,7 @@ numpy
 scipy
 matplotlib
 torch
+pytorch-lightning
 gym[all]
 highway-env
 pygame
