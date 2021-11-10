@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Tuple
+from typing import Generic, Tuple, TypeVar
 
 import numpy as np
 from overrides.overrides import overrides
-
-from .policy_abc import PolicyBase
 
 
 class Action(ABC):
@@ -56,11 +54,26 @@ class Metrics(ABC):
     pass
 
 
-class Environment(ABC):
+StateTypeVar = TypeVar("StateTypeVar", bound=State)
+ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
+
+
+class PolicyBase(ABC, Generic[StateTypeVar, ActionTypeVar]):
+    @abstractmethod
+    def sample_action(self, state: StateTypeVar) -> ActionTypeVar:
+        pass
+
+
+StateTypeVar = TypeVar("StateTypeVar", bound=State)
+ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
+MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+
+
+class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
     @abstractmethod
     def step(self,
-             action: Action,
-             to_visualize: bool = False) -> Tuple[State, float, bool]:
+             action: ActionTypeVar,
+             to_visualize: bool = False) -> Tuple[StateTypeVar, float, bool]:
         """Take an action.
 
         Args:
@@ -74,25 +87,8 @@ class Environment(ABC):
         """
         pass
 
-    # @abstractmethod
-    # def step_random(
-    #         self,
-    #         to_visualize: bool = False) -> Tuple[Action, State, float, bool]:
-    #     """Take a random action.
-
-    #     Args:
-    #         to_visualize (bool): Whether to render the visualization.
-
-    #     Returns:
-    #         action (Action): The random action being taken.
-    #         next_state (State): The next state after taking the passed in action.
-    #         reward (float): The reward associated with the state.
-    #         is_terminal (bool): Whether or not the state is terminal.
-    #     """
-    #     pass
-
     @abstractmethod
-    def reset(self) -> State:
+    def reset(self) -> StateTypeVar:
         """Reset the environment
 
         Returns:
@@ -101,7 +97,7 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def calculate_metrics(self) -> Metrics:
+    def calculate_metrics(self) -> MetricsTypeVar:
         """Calculate the metrics of the episode that just terminated.
 
         Returns:
@@ -110,7 +106,7 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def get_random_policy(self) -> PolicyBase:
+    def get_random_policy(self) -> PolicyBase[StateTypeVar, ActionTypeVar]:
         """Get the random policy for the current enviornment.
 
         Returns:
@@ -119,32 +115,17 @@ class Environment(ABC):
         pass
 
 
-class DiscreteEnvironment(Environment):
+StateTypeVar = TypeVar("StateTypeVar", bound=State)
+ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
+MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+
+
+class DiscreteEnvironment(Environment[StateTypeVar, ActionTypeVar,
+                                      MetricsTypeVar]):
     @abstractmethod
-    # @overrides
+    @overrides
     def step(self,
-             action: DiscreteAction,
-             to_visualize: bool = False) -> Tuple[State, float, bool]:
+             action: ActionTypeVar,
+             to_visualize: bool = False) -> Tuple[StateTypeVar, float, bool]:
         pass
-
-    # @abstractmethod
-    # # @overrides
-    # def step_random(
-    #     self,
-    #     to_visualize: bool = False
-    # ) -> Tuple[DiscreteAction, State, float, bool]:
-    #     """Take a random action.
-
-    #     to_visualize (bool): Whether to render the visualization.
-
-    #     Returns:
-    #         action (Action): The random action being taken.
-    #         next_state (State): The next state after taking the passed in action.
-    #         reward (float): The reward associated with the state.
-    #         is_terminal (bool): Whether or not the state is terminal.
-    #     """
-    #     pass
-
-    @abstractmethod
-    def int_to_action(self, action: int) -> "DiscreteAction":
-        pass
+    

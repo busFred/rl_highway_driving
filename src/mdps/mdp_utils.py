@@ -1,10 +1,9 @@
-from typing import Sequence
+from typing import Sequence, TypeVar
 
 import numpy as np
 import torch
 
-from .mdp_abc import Metrics, State, Environment, Action
-from .policy_abc import PolicyBase
+from .mdp_abc import Action, Environment, Metrics, PolicyBase, State
 
 
 def states_to_torch(states: Sequence[State], dtype: torch.dtype,
@@ -17,10 +16,15 @@ def states_to_torch(states: Sequence[State], dtype: torch.dtype,
     return states_torch
 
 
-def simulate(env: Environment,
-             policy: PolicyBase,
+StateTypeVar = TypeVar("StateTypeVar", bound=State)
+ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
+MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+
+
+def simulate(env: Environment[StateTypeVar, ActionTypeVar, MetricsTypeVar],
+             policy: PolicyBase[StateTypeVar, ActionTypeVar],
              max_episode_steps: int,
-             to_visualize: bool = True) -> Metrics:
+             to_visualize: bool = True) -> MetricsTypeVar:
     """Simulate the MDP with the given policy.
 
     Args:
@@ -32,10 +36,10 @@ def simulate(env: Environment,
     Returns:
         metrics (Metrics): The metrics of the current episode.
     """
-    state: State = env.reset()
+    state: StateTypeVar = env.reset()
     # step until timeout occurs
     for curr_step in range(max_episode_steps):
-        action: Action = policy.sample_action(state)
+        action: ActionTypeVar = policy.sample_action(state)
         next_state, _, is_terminal = env.step(action=action,
                                               to_visualize=to_visualize)
         state = next_state
@@ -45,11 +49,16 @@ def simulate(env: Environment,
     return metrics
 
 
-def simulate_episodes(env: Environment,
-                      policy: PolicyBase,
+StateTypeVar = TypeVar("StateTypeVar", bound=State)
+ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
+MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+
+
+def simulate_episodes(env: Environment[StateTypeVar, ActionTypeVar, MetricsTypeVar],
+                      policy: PolicyBase[StateTypeVar, ActionTypeVar],
                       max_episode_steps: int,
                       n_episodes: int,
-                      to_visualize: bool = True):
+                      to_visualize: bool = True) -> Sequence[MetricsTypeVar]:
     """Simulate the MDP with the given policy.
 
     Args:
@@ -63,7 +72,7 @@ def simulate_episodes(env: Environment,
         metrics (Sequence[Metrics]): The metrics of the all the episodes.
     """
     # TODO parallelize this piece of code.
-    metrics: Sequence[Metrics] = list()
+    metrics: Sequence[MetricsTypeVar] = list()
     for curr_eps in range(n_episodes):
         curr_metrics = simulate(env=env,
                                 policy=policy,

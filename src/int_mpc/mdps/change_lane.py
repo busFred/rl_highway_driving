@@ -1,7 +1,7 @@
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from dataclasses_json import dataclass_json
@@ -10,8 +10,7 @@ from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
 from overrides.overrides import overrides
 
-from mdps.mdp_abc import DiscreteEnvironment, Metrics
-from mdps.policy_abc import PolicyBase
+from mdps.mdp_abc import DiscreteEnvironment, Metrics, PolicyBase
 
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
@@ -37,8 +36,11 @@ class ChangeLaneMetrics(Metrics):
     screenshot: Optional[np.ndarray] = field(default=None)
 
 
-class ChangeLaneEnv(DiscreteEnvironment):
-    class ChangeLaneRandomPolicy(PolicyBase):
+class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
+                                        HighwayEnvDiscreteAction,
+                                        ChangeLaneMetrics]):
+    class ChangeLaneRandomPolicy(PolicyBase[HighwayEnvState,
+                                            HighwayEnvDiscreteAction]):
 
         _env: "ChangeLaneEnv"
 
@@ -46,7 +48,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             super().__init__()
             self._env = env
 
-        # @overrides
+        @overrides
         def sample_action(self,
                           state: HighwayEnvState) -> HighwayEnvDiscreteAction:
             all_actions = list(HighwayEnvDiscreteAction)
@@ -129,7 +131,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._start_state = None
         self._end_state = None
 
-    # @overrides
+    @overrides
     def step(
             self,
             action: HighwayEnvDiscreteAction,
@@ -163,30 +165,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             self._env.render()
         return mdp_state, reward, is_terminal
 
-    # @overrides
-    # def step_random(
-    #     self,
-    #     to_visualize: bool = False
-    # ) -> Tuple[HighwayEnvDiscreteAction, State, float, bool]:
-    #     """Take a random action.
-
-    #     The action ~ multinomial(n=1, p_vals=[1/5]*5).
-
-    #     Args:
-    #         to_visualize (bool): Whether to render the visualization.
-
-    #     Returns:
-    #         action (HighwayEnvDiscreteAction): The action being taken.
-    #         mdp_state (State): The next state after taking the passed in action.
-    #         reward (float): The reward associated with the state.
-    #         is_terminal (bool): Whether or not the state is terminal.
-    #     """
-    #     all_actions = list(HighwayEnvDiscreteAction)
-    #     action: HighwayEnvDiscreteAction = random.choice(all_actions)
-    #     mdp_state, reward, is_terminal = self.step(action, to_visualize)
-    #     return action, mdp_state, reward, is_terminal
-
-    # @overrides
+    @overrides
     def reset(self) -> HighwayEnvState:
         """Reset the environment
 
@@ -205,15 +184,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._end_state = None
         return mdp_state
 
-    # @overrides
-    def int_to_action(self, action: int) -> HighwayEnvDiscreteAction:
-        try:
-            act = HighwayEnvDiscreteAction(action)
-            return act
-        except:
-            raise ValueError("unsupporeted int action")
-
-    # @overrides
+    @overrides
     def calculate_metrics(self) -> ChangeLaneMetrics:
         if self._start_state is None:
             raise ValueError("begin state initialized properly")
@@ -232,7 +203,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     screenshot=screenshot)
         return metrics
 
-    # @overrides
+    @overrides
     def get_random_policy(self) -> ChangeLaneRandomPolicy:
         return ChangeLaneEnv.ChangeLaneRandomPolicy(self)
 
