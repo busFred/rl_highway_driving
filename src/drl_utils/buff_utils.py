@@ -1,9 +1,10 @@
-from typing import List, Tuple
+from typing import Generator, List, Tuple
 
 import numpy as np
+from six import Iterator
 import torch
-
 from mdps.mdp_abc import Action, Environment, State
+from torch.utils.data import IterableDataset
 
 
 class ReplayBuffer:
@@ -120,3 +121,25 @@ class ReplayBuffer:
             else:
                 state = env.reset()
         return replay_buffer
+
+
+class RLDataset(IterableDataset):
+
+    buff: ReplayBuffer
+    batch_size: int
+    dtype: torch.dtype
+    device: torch.device
+
+    def __init__(self,
+                 buff: ReplayBuffer,
+                 batch_size: int,
+                 dtype: torch.dtype = torch.float,
+                 device: torch.device = torch.device("cpu")):
+        self.buff = buff
+        self.batch_size = batch_size
+        self.dtype = dtype
+        self.device = device
+
+    def __iter__(self):
+        return zip(*(self.buff.sample_experiences(self.batch_size, self.dtype,
+                                                  self.device)))
