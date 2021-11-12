@@ -16,7 +16,7 @@ def create_argparse() -> ArgumentParser:
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--vehicles_count", type=int, default=200)
-    parser.add_argument("--n_test_episodes", type=int, default=1000)
+    parser.add_argument("--n_val_episodes", type=int, default=20)
     parser.add_argument("--to_vis", action="store_true")
     return parser
 
@@ -47,6 +47,7 @@ def main(args: Sequence[str]):
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
+                           n_val_episodes=argv.n_val_episodes,
                            optimizer=torch.optim.Adam(net.parameters()))
     config_filename: str = os.path.split(argv.dqn_config_path)[-1]
     config_filename = os.path.splitext(config_filename)[0]
