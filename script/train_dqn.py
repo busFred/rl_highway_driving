@@ -15,7 +15,7 @@ def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
-    parser.add_argument("--vehicles_count", type=int, default=200)
+    parser.add_argument("--vehicles_count", type=int, default=100)
     parser.add_argument("--n_val_episodes", type=int, default=20)
     parser.add_argument("--to_vis", action="store_true")
     return parser
