@@ -118,12 +118,10 @@ def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
     """Create and initialize the replay buffer with random policy.
 
     Args:
+        buff (ReplayBuffer): The buffer to be populated.
         env (Environment): The enviornment in use.
-        max_size (int): The maximum length of the replay buffer.
+        policy (PolicyBase): The policy used to populate the buffer.
         target_size (int): The target replay buffer size.
-
-    Returns:
-        replay_buffer: The new replay buffer.
     """
     state: State = env.reset()
     while len(buff) < min(target_size, buff._max_size):
