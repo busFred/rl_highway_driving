@@ -41,19 +41,16 @@ def main(args: Sequence[str]):
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
     net = LinearDQN()
-    # dqn = alg_dqn.DQN(dqn_net=net,
-    #                   optimizer=torch.optim.Adam(net.parameters()),
-    #                   device=device)
     # get configuration
     dqn_config: alg_dqn.DQNConfig = get_config(argv.dqn_config_path)
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
                            optimizer=torch.optim.Adam(net.parameters()))
-    pl.Trainer(gpus=-1, auto_select_gpus=True,
-               check_val_every_n_epoch=5).fit(dqn)
-    # train agent
-    # alg_dqn.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
+    trainer = pl.Trainer(gpus=-1,
+                         auto_select_gpus=True,
+                         check_val_every_n_epoch=5)
+    trainer.fit(dqn)
     # export model
     model_path: str = os.path.join(argv.export_path, "model.pt")
     torch.save(dqn.dqn, model_path)
