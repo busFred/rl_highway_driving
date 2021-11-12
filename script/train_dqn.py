@@ -2,12 +2,14 @@ import os
 import sys
 from argparse import ArgumentParser, Namespace
 from typing import Sequence
+from pytorch_lightning.loggers.csv_logs import CSVLogger
 
 import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN
 import pytorch_lightning as pl
+import pytorch_lightning.loggers as pl_loggers
 
 
 def create_argparse() -> ArgumentParser:
@@ -47,9 +49,20 @@ def main(args: Sequence[str]):
                            dqn_net=net,
                            dqn_config=dqn_config,
                            optimizer=torch.optim.Adam(net.parameters()))
-    trainer = pl.Trainer(gpus=-1,
+    config_filename: str = os.path.split(argv.dqn_config_path)[-1]
+    config_filename = os.path.splitext(config_filename)[0]
+    loggers = [
+        pl_loggers.TensorBoardLogger(save_dir=argv.export_path,
+                                     name=config_filename + "_tfb",
+                                     default_hp_metric=False),
+        pl_loggers.CSVLogger(save_dir=argv.export_path,
+                             name=config_filename + "_csv")
+    ]
+    trainer = pl.Trainer(logger=loggers,
+                         gpus=-1,
                          auto_select_gpus=True,
                          check_val_every_n_epoch=5)
+
     trainer.fit(dqn)
     # export model
     model_path: str = os.path.join(argv.export_path, "model.pt")
