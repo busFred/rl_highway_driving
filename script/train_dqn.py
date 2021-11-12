@@ -58,14 +58,15 @@ def main(args: Sequence[str]):
         pl_loggers.CSVLogger(save_dir=argv.export_path,
                              name=config_filename + "_csv")
     ]
-    trainer = pl.Trainer(logger=loggers,
+    trainer = pl.Trainer(max_epochs=dqn_config.n_episodes,
+                         logger=loggers,
                          gpus=-1,
                          auto_select_gpus=True,
                          check_val_every_n_epoch=5)
 
     trainer.fit(dqn)
     # export model
-    model_path: str = os.path.join(argv.export_path, "model.pt")
+    model_path: str = os.path.join(argv.export_path, config_filename + ".pt")
     torch.save(dqn.dqn, model_path)
 
 
