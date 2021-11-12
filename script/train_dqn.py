@@ -2,14 +2,13 @@ import os
 import sys
 from argparse import ArgumentParser, Namespace
 from typing import Sequence
-from pytorch_lightning.loggers.csv_logs import CSVLogger
 
+import pytorch_lightning as pl
+import pytorch_lightning.loggers as pl_loggers
 import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN
-import pytorch_lightning as pl
-import pytorch_lightning.loggers as pl_loggers
 
 
 def create_argparse() -> ArgumentParser:
