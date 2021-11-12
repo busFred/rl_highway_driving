@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import ClassVar, Tuple, Type
+from typing import Dict, Sequence, Tuple
 
 import numpy as np
 from overrides.overrides import overrides
@@ -102,6 +102,11 @@ class Environment(ABC):
         Returns:
             metrics (Metrics): The metrics at the end of the episode.
         """
+        pass
+
+    @abstractmethod
+    def summarize_metrics_seq(
+            self, metrics_seq: Sequence[Metrics]) -> Dict[str, float]:
         pass
 
     @abstractmethod

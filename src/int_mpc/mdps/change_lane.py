@@ -1,7 +1,7 @@
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from dataclasses_json import dataclass_json
@@ -33,7 +33,7 @@ class ChangeLaneConfig:
 class ChangeLaneMetrics(Metrics):
     distance_travel: float = field()
     terminated_crash: bool = field()
-    n_steps_to_crash: float = field()
+    n_steps_to_crash: int = field()
     screenshot: Optional[np.ndarray] = field(default=None)
 
 
@@ -202,6 +202,32 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     n_steps_to_crash=n_steps_to_crash,
                                     screenshot=screenshot)
         return metrics
+
+    @overrides
+    def summarize_metrics_seq(
+            self, metrics_seq: Sequence[Metrics]) -> Dict[str, float]:
+        distance_travel: List[float] = list()
+        steps_to_crash: List[int] = list()
+        for metric in metrics_seq:
+            if isinstance(metric, ChangeLaneMetrics):
+                distance_travel.append(metric.distance_travel)
+                if metric.terminated_crash:
+                    steps_to_crash.append(metric.n_steps_to_crash)
+            else:
+                raise ValueError
+        avg_distance: float = np.mean(distance_travel)
+        avg_steps_to_crash: float = np.mean(steps_to_crash)
+        std_distance: float = np.std(distance_travel)
+        std_steps_to_crash: float = np.std(steps_to_crash)
+        n_crashes: int = len(steps_to_crash)
+        metrics_dict: Dict[str, float] = {
+            "avg_distance": avg_distance,
+            "avg_steps_to_crash": avg_steps_to_crash,
+            "std_distance": std_distance,
+            "std_steps_to_crash": std_steps_to_crash,
+            "n_crashes": n_crashes
+        }
+        return metrics_dict
 
     @overrides
     def get_random_policy(self) -> ChangeLaneRandomPolicy:
