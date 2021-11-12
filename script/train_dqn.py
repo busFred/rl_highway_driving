@@ -7,6 +7,7 @@ import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN
+import pytorch_lightning as pl
 
 
 def create_argparse() -> ArgumentParser:
@@ -15,7 +16,6 @@ def create_argparse() -> ArgumentParser:
     parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--vehicles_count", type=int, default=200)
     parser.add_argument("--n_test_episodes", type=int, default=1000)
-    parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
     return parser
 
@@ -41,14 +41,19 @@ def main(args: Sequence[str]):
     env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
     # create dqn
     net = LinearDQN()
-    device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
-    dqn = alg_dqn.DQN(dqn=net,
-                      optimizer=torch.optim.Adam(net.parameters()),
-                      device=device)
+    # dqn = alg_dqn.DQN(dqn_net=net,
+    #                   optimizer=torch.optim.Adam(net.parameters()),
+    #                   device=device)
     # get configuration
     dqn_config: alg_dqn.DQNConfig = get_config(argv.dqn_config_path)
+    dqn = alg_dqn.DQNTrain(env=env,
+                           dqn_net=net,
+                           dqn_config=dqn_config,
+                           optimizer=torch.optim.Adam(net.parameters()))
+    pl.Trainer(gpus=-1, auto_select_gpus=True,
+               check_val_every_n_epoch=5).fit(dqn)
     # train agent
-    alg_dqn.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
+    # alg_dqn.train_dqn(env=env, dqn=dqn, dqn_config=dqn_config)
     # export model
     model_path: str = os.path.join(argv.export_path, "model.pt")
     torch.save(dqn.dqn, model_path)
