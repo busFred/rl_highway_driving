@@ -1,14 +1,14 @@
 import copy
-import typing
 from dataclasses import dataclass, field
-from typing import Generic, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
 from dataclasses_json import dataclass_json
 from drl_utils.buff_utils import ReplayBuffer
 from mdps import mdp_utils
-from mdps.mdp_abc import DiscreteAction, DiscreteEnvironment, Metrics, PolicyBase, State
+from mdps.mdp_abc import (Action, DiscreteAction, DiscreteEnvironment,
+                          PolicyBase, State)
 from torch import nn
 
 
@@ -26,22 +26,18 @@ class DQNConfig:
     targ_update_episodes: int = field(default=20)
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
-
-
-class GreedyDQNPolicy(PolicyBase[StateTypeVar, ActionTypeVar]):
+class GreedyDQNPolicy(PolicyBase):
+    ActionType: Type[DiscreteAction]
     _dqn: "DQN"
 
-    def __init__(self, dqn: "DQN") -> None:
+    def __init__(self, env: DiscreteEnvironment, dqn: "DQN") -> None:
         super().__init__()
         self._dqn = dqn
+        self.ActionType = env.ActionType
 
-    def sample_action(self, state: StateTypeVar) -> ActionTypeVar:
+    def sample_action(self, state: State) -> DiscreteAction:
         next_q_vals: torch.Tensor = self._dqn.predict_q_vals([state])
-        ActionType: Type[ActionTypeVar] = typing.get_args(
-            self.__orig_class__)[1]
-        action: ActionType = ActionType(next_q_vals.argmax(1)[0].item())
+        action = self.ActionType(next_q_vals.argmax(1)[0].item())
         return action
 
 
@@ -175,13 +171,7 @@ class DQN:
         self.targ_dqn.eval()
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
-MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
-
-
-def train_dqn(env: DiscreteEnvironment[StateTypeVar, ActionTypeVar,
-                                       MetricsTypeVar],
+def train_dqn(env: DiscreteEnvironment,
               dqn: DQN,
               dqn_config: DQNConfig,
               replay_buffer: Optional[ReplayBuffer] = None) -> ReplayBuffer:
@@ -221,16 +211,10 @@ def train_dqn(env: DiscreteEnvironment[StateTypeVar, ActionTypeVar,
     return replay_buffer
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
-MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
-
-
-def greedy_step(
-        env: DiscreteEnvironment[StateTypeVar, ActionTypeVar, MetricsTypeVar],
-        state: StateTypeVar,
-        dqn: DQN,
-        to_vis: bool = False) -> Tuple[DiscreteAction, State, float, bool]:
+def greedy_step(env: DiscreteEnvironment,
+                state: State,
+                dqn: DQN,
+                to_vis: bool = False) -> Tuple[Action, State, float, bool]:
     """Take a step based on epsilon greedy policy.
 
     Args:
@@ -246,22 +230,16 @@ def greedy_step(
         is_terminal (bool): Whether next state is terminal.
     """
     # (1, n_actions)
-    policy = GreedyDQNPolicy[StateTypeVar, ActionTypeVar](dqn=dqn)
+    policy = GreedyDQNPolicy(env=env, dqn=dqn)
     action = policy.sample_action(state)
     next_state, next_reward, is_terminal = env.step(action,
                                                     to_visualize=to_vis)
     return action, next_state, next_reward, is_terminal
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
-MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
-
-
 def _eps_greedy_step(
-        env: DiscreteEnvironment[StateTypeVar, ActionTypeVar, MetricsTypeVar],
-        state: StateTypeVar, dqn: DQN, dqn_config: DQNConfig
-) -> Tuple[ActionTypeVar, StateTypeVar, float, bool]:
+        env: DiscreteEnvironment, state: State, dqn: DQN,
+        dqn_config: DQNConfig) -> Tuple[Action, State, float, bool]:
     """Take a step based on epsilon greedy policy.
 
     Args:
@@ -277,14 +255,11 @@ def _eps_greedy_step(
         is_terminal (bool): Whether next state is terminal.
     """
     is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
+    policy = GreedyDQNPolicy(env=env, dqn=dqn)
     if is_random:
         # ignore type error
-        action: DiscreteAction = env.get_random_policy().sample_action(state)
-        next_state, next_reward, is_terminal = env.step(action,
-                                                        to_visualize=False)
-        return action, next_state, next_reward, is_terminal
+        policy = env.get_random_policy()
     # (1, n_actions)
-    policy = GreedyDQNPolicy[StateTypeVar, ActionTypeVar](dqn=dqn)
     action = policy.sample_action(state)
     next_state, next_reward, is_terminal = env.step(action, to_visualize=False)
     return action, next_state, next_reward, is_terminal

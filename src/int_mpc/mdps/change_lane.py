@@ -10,7 +10,8 @@ from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
 from overrides.overrides import overrides
 
-from mdps.mdp_abc import DiscreteEnvironment, Metrics, PolicyBase
+from mdps.mdp_abc import (Action, DiscreteEnvironment, Metrics, PolicyBase,
+                          State)
 
 from . import highway_mdp
 from .highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
@@ -36,24 +37,20 @@ class ChangeLaneMetrics(Metrics):
     screenshot: Optional[np.ndarray] = field(default=None)
 
 
-class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
-                                        HighwayEnvDiscreteAction,
-                                        ChangeLaneMetrics]):
-    class ChangeLaneRandomPolicy(PolicyBase[HighwayEnvState,
-                                            HighwayEnvDiscreteAction]):
-
-        _env: "ChangeLaneEnv"
-
-        def __init__(self, env: "ChangeLaneEnv"):
+class ChangeLaneEnv(DiscreteEnvironment):
+    class ChangeLaneRandomPolicy(PolicyBase):
+        def __init__(self):
             super().__init__()
-            self._env = env
 
         @overrides
-        def sample_action(self,
-                          state: HighwayEnvState) -> HighwayEnvDiscreteAction:
+        def sample_action(self, state: State) -> Action:
             all_actions = list(HighwayEnvDiscreteAction)
             action: HighwayEnvDiscreteAction = random.choice(all_actions)
             return action
+
+    StateType = HighwayEnvState
+    ActionType = HighwayEnvDiscreteAction
+    MetricsType = ChangeLaneMetrics
 
     # static const
     DEFAULT_CONFIG: Dict[str, Any] = {
@@ -134,7 +131,7 @@ class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
     @overrides
     def step(
             self,
-            action: HighwayEnvDiscreteAction,
+            action: Action,
             to_visualize: bool = False) -> Tuple[HighwayEnvState, float, bool]:
         """Take an action.
 
@@ -143,6 +140,7 @@ class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
             to_visualize (bool): Whether to render the visualization.
 
         Raises:
+            TypeError: action not type of HighwayEnvDiscreteAction
             ValueError: action is invalid.
 
         Returns:
@@ -150,6 +148,8 @@ class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
+        if not isinstance(action, HighwayEnvDiscreteAction):
+            raise TypeError
         if action not in HighwayEnvDiscreteAction:
             raise ValueError
         _, reward, is_terminal, info = self._env.step(action=action)
@@ -205,7 +205,7 @@ class ChangeLaneEnv(DiscreteEnvironment[HighwayEnvState,
 
     @overrides
     def get_random_policy(self) -> ChangeLaneRandomPolicy:
-        return ChangeLaneEnv.ChangeLaneRandomPolicy(self)
+        return ChangeLaneEnv.ChangeLaneRandomPolicy()
 
     # protected methods
     def _make_observation(self) -> np.ndarray:

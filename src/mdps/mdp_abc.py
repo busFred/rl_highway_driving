@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Generic, Tuple, TypeVar
+from typing import ClassVar, Tuple, Type
 
 import numpy as np
 from overrides.overrides import overrides
@@ -54,26 +54,25 @@ class Metrics(ABC):
     pass
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
+class PolicyBase(ABC):
 
+    ActionType = Action
 
-class PolicyBase(ABC, Generic[StateTypeVar, ActionTypeVar]):
     @abstractmethod
-    def sample_action(self, state: StateTypeVar) -> ActionTypeVar:
+    def sample_action(self, state: State) -> Action:
         pass
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=Action)
-MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+class Environment(ABC):
 
+    StateType = State
+    ActionType = Action
+    MetricsType = Metrics
 
-class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
     @abstractmethod
     def step(self,
-             action: ActionTypeVar,
-             to_visualize: bool = False) -> Tuple[StateTypeVar, float, bool]:
+             action: Action,
+             to_visualize: bool = False) -> Tuple[State, float, bool]:
         """Take an action.
 
         Args:
@@ -88,7 +87,7 @@ class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
         pass
 
     @abstractmethod
-    def reset(self) -> StateTypeVar:
+    def reset(self) -> State:
         """Reset the environment
 
         Returns:
@@ -97,7 +96,7 @@ class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
         pass
 
     @abstractmethod
-    def calculate_metrics(self) -> MetricsTypeVar:
+    def calculate_metrics(self) -> Metrics:
         """Calculate the metrics of the episode that just terminated.
 
         Returns:
@@ -106,7 +105,7 @@ class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
         pass
 
     @abstractmethod
-    def get_random_policy(self) -> PolicyBase[StateTypeVar, ActionTypeVar]:
+    def get_random_policy(self) -> PolicyBase:
         """Get the random policy for the current enviornment.
 
         Returns:
@@ -115,17 +114,13 @@ class Environment(ABC, Generic[StateTypeVar, ActionTypeVar, MetricsTypeVar]):
         pass
 
 
-StateTypeVar = TypeVar("StateTypeVar", bound=State)
-ActionTypeVar = TypeVar("ActionTypeVar", bound=DiscreteAction)
-MetricsTypeVar = TypeVar("MetricsTypeVar", bound=Metrics)
+class DiscreteEnvironment(Environment):
 
+    ActionType = DiscreteAction
 
-class DiscreteEnvironment(Environment[StateTypeVar, ActionTypeVar,
-                                      MetricsTypeVar]):
     @abstractmethod
     @overrides
     def step(self,
-             action: ActionTypeVar,
-             to_visualize: bool = False) -> Tuple[StateTypeVar, float, bool]:
+             action: Action,
+             to_visualize: bool = False) -> Tuple[State, float, bool]:
         pass
-    
