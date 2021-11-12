@@ -1,9 +1,8 @@
-from typing import Generator, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
-from six import Iterator
 import torch
-from mdps.mdp_abc import Action, Environment, State
+from mdps.mdp_abc import Action, Environment, PolicyBase, State
 from torch.utils.data import IterableDataset
 
 
@@ -92,54 +91,51 @@ class ReplayBuffer:
     def __len__(self):
         return len(self._replay_buff)
 
-    @staticmethod
-    def create_random_replay_buffer(env: Environment, max_size: int,
-                                    target_size: int):
-        """Create and initialize the replay buffer with random policy.
 
-        Args:
-            env (Environment): The enviornment in use.
-            max_size (int): The maximum length of the replay buffer.
-            target_size (int): The target replay buffer size.
+class RLDataset(ReplayBuffer, IterableDataset):
 
-        Returns:
-            replay_buffer: The new replay buffer.
-        """
-        replay_buffer = ReplayBuffer(max_size)
-        state: State = env.reset()
-        while len(replay_buffer) < target_size:
-            action: Action = env.get_random_policy().sample_action(state)
-            next_state, next_reward, is_terminal = env.step(action=action,
-                                                            to_visualize=False)
-            replay_buffer.add_experience(state=state,
-                                         action=action,
-                                         next_state=next_state,
-                                         next_reward=next_reward,
-                                         is_terminal=is_terminal)
-            if is_terminal == False:
-                state = next_state
-            else:
-                state = env.reset()
-        return replay_buffer
-
-
-class RLDataset(IterableDataset):
-
-    buff: ReplayBuffer
     batch_size: int
-    dtype: torch.dtype
-    device: torch.device
+    _dtype: torch.dtype
+    _device: torch.device
 
     def __init__(self,
-                 buff: ReplayBuffer,
+                 max_size: int,
                  batch_size: int,
                  dtype: torch.dtype = torch.float,
                  device: torch.device = torch.device("cpu")):
-        self.buff = buff
+        super().__init__(max_size=max_size)
         self.batch_size = batch_size
-        self.dtype = dtype
-        self.device = device
+        self._dtype = dtype
+        self._device = device
 
     def __iter__(self):
-        return zip(*(self.buff.sample_experiences(self.batch_size, self.dtype,
-                                                  self.device)))
+        return zip(*(self.sample_experiences(self.batch_size, self._dtype,
+                                             self._device)))
+
+
+def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
+                           policy: PolicyBase, target_size: int):
+    """Create and initialize the replay buffer with random policy.
+
+    Args:
+        env (Environment): The enviornment in use.
+        max_size (int): The maximum length of the replay buffer.
+        target_size (int): The target replay buffer size.
+
+    Returns:
+        replay_buffer: The new replay buffer.
+    """
+    state: State = env.reset()
+    while len(buff) < min(target_size, buff._max_size):
+        action: Action = policy.sample_action(state)
+        next_state, next_reward, is_terminal = env.step(action=action,
+                                                        to_visualize=False)
+        buff.add_experience(state=state,
+                            action=action,
+                            next_state=next_state,
+                            next_reward=next_reward,
+                            is_terminal=is_terminal)
+        if is_terminal == False:
+            state = next_state
+        else:
+            state = env.reset()
