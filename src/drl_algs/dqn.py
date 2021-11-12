@@ -301,7 +301,7 @@ def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
     # (n_states, n_actions)
     pred_q_vals: torch.Tensor = dqn._predict_q_vals(states=states)
     # (n_states, 1)
-    pred_q_vals = pred_q_vals.gather(1, actions)
+    pred_q_vals = pred_q_vals.gather(1, actions.type(torch.int64))
     error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
     error.backward()
     dqn.optimizer.step()
