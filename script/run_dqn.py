@@ -2,8 +2,7 @@ import os
 import pickle
 import sys
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -11,7 +10,6 @@ import numpy as np
 import torch
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import ChangeLaneEnv, ChangeLaneMetrics
-from int_mpc.mdps.highway_mdp import HighwayEnvDiscreteAction, HighwayEnvState
 from mdps.mdp_utils import simulate
 
 matplotlib.use("agg")
@@ -64,8 +62,7 @@ def main(args: Sequence[str]):
     net = torch.load(argv.model_path)
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     dqn = alg_dqn.DQN(dqn=net, device=device)
-    policy = alg_dqn.GreedyDQNPolicy[HighwayEnvState,
-                                     HighwayEnvDiscreteAction](dqn=dqn)
+    policy = alg_dqn.GreedyDQNPolicy(env=env, dqn=dqn)
     # generate test metrics.
     metrics_l: List[ChangeLaneMetrics] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
