@@ -1,15 +1,18 @@
 import copy
 from dataclasses import dataclass, field
-from typing import Optional, Sequence, Tuple, Type, Union
+from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from dataclasses_json import dataclass_json
-from drl_utils.buff_utils import ReplayBuffer
+from drl_utils import buff_utils
+from drl_utils.buff_utils import RLDataset
 from mdps import mdp_utils
-from mdps.mdp_abc import (Action, DiscreteAction, DiscreteEnvironment,
+from mdps.mdp_abc import (Action, DiscreteAction, DiscreteEnvironment, Metrics,
                           PolicyBase, State)
 from torch import nn
+from torch.utils.data.dataloader import DataLoader
 
 
 @dataclass_json
@@ -26,28 +29,13 @@ class DQNConfig:
     targ_update_episodes: int = field(default=20)
 
 
-class GreedyDQNPolicy(PolicyBase):
+class DQN(PolicyBase):
+
     ActionType: Type[DiscreteAction]
-    _dqn: "DQN"
-
-    def __init__(self, env: DiscreteEnvironment, dqn: "DQN") -> None:
-        super().__init__()
-        self._dqn = dqn
-        self.ActionType = env.ActionType
-
-    def sample_action(self, state: State) -> DiscreteAction:
-        next_q_vals: torch.Tensor = self._dqn.predict_q_vals([state])
-        action = self.ActionType(next_q_vals.argmax(1)[0].item())
-        return action
-
-
-class DQN:
 
     _dqn: nn.Module
-    _optimizer: Union[torch.optim.Optimizer, None]
-    _targ_dqn: Union[nn.Module, None]
-    dtype: torch.dtype
-    device: torch.device
+    _dtype: torch.dtype
+    _device: torch.device
 
     @property
     def dqn(self) -> nn.Module:
@@ -56,43 +44,27 @@ class DQN:
         Returns:
             dqn (nn.Module): The self.dqn.
         """
-        self._dqn.to(device=self.device, dtype=self.dtype)
+        self._dqn.to(device=self._device, dtype=self._dtype)
         return self._dqn
-
-    @property
-    def optimizer(self) -> torch.optim.Optimizer:
-        if self._optimizer is None:
-            raise ValueError("self._optimizer is None")
-        return self._optimizer
-
-    @property
-    def targ_dqn(self) -> nn.Module:
-        """Get the targ_dqn.
-
-        Raises:
-            ValueError: if self.targ_dqn is None.
-
-        Returns:
-            targ_dqn (nn.Module): The target self.dqn.
-        """
-        if self._targ_dqn is None:
-            raise ValueError("self.targ_dqn is None")
-        self._targ_dqn.to(device=self.device, dtype=self.dtype)
-        return self._targ_dqn
 
     def __init__(
         self,
-        dqn: nn.Module,
-        optimizer: Optional[torch.optim.Optimizer] = None,
+        env: DiscreteEnvironment,
+        dqn_net: nn.Module,
         dtype: torch.dtype = torch.float,
         device: torch.device = torch.device("cpu")
     ) -> None:
-        self._dqn = dqn
-        self._optimizer = optimizer
-        self._targ_dqn = None
-        self.dtype = dtype
-        self.device = device
-        self.eval()
+        super().__init__()
+        self.ActionType = env.ActionType
+        self._dqn = dqn_net
+        self._dtype = dtype
+        self._device = device
+        self._dqn.eval()
+
+    def sample_action(self, state: State) -> DiscreteAction:
+        next_q_vals: torch.Tensor = self.predict_q_vals([state])
+        action = self.ActionType(next_q_vals.argmax(1)[0].item())
+        return action
 
     def predict_q_vals(self, states: Sequence[State]) -> torch.Tensor:
         """Predict and select the q_vals predictions made by self.dqn.
@@ -104,7 +76,7 @@ class DQN:
             q_vals (torch.Tensor): (n_states, n_actions) The predicted q values.
         """
         states_tensor: torch.Tensor = mdp_utils.states_to_torch(
-            states=states, dtype=self.dtype, device=self.device)
+            states=states, dtype=self._dtype, device=self._device)
         return self._predict_q_vals(states=states_tensor)
 
     def _predict_q_vals(self, states: torch.Tensor) -> torch.Tensor:
@@ -116,28 +88,149 @@ class DQN:
         Returns:
             q_vals (torch.Tensor): (n_states, n_actions) The predicted q values.
         """
-        states = states.to(device=self.device, dtype=self.dtype)
+        states = states.to(device=self._device, dtype=self._dtype)
         # (n_states, n_actions)
         q_vals: torch.Tensor = self.dqn(states)
         return q_vals
 
-    def train(self):
-        """Set the dqn to train mode.
 
-        If self.targ_dqn is None, then make a deep copy of self.dqn and call self._update_targ()
+class DQNTrain(DQN, pl.LightningModule):
+
+    env: DiscreteEnvironment
+    dqn_config: DQNConfig
+    optimizer: torch.optim.Optimizer
+    _targ_dqn: nn.Module
+
+    # initialized in on_fit_start
+    curr_epsilon: float
+    buff: RLDataset
+    curr_state: State
+    is_terminal: bool
+
+    @property
+    def targ_dqn(self) -> nn.Module:
+        """Get the targ_dqn.
+
+        Raises:
+            ValueError: if self.targ_dqn is None.
+
+        Returns:
+            targ_dqn (nn.Module): The target self.dqn.
         """
-        if self._targ_dqn is None:
-            self._update_targ()
-        self.dqn.train()
+        self._targ_dqn.to(device=self._device, dtype=self._dtype)
+        return self._targ_dqn
 
-    def eval(self):
+    def __init__(
+        self,
+        env: DiscreteEnvironment,
+        dqn_net: nn.Module,
+        dqn_config: DQNConfig,
+        optimizer: torch.optim.Optimizer,
+        dtype: torch.dtype = torch.float,
+        device: torch.device = torch.device("cpu")
+    ) -> None:
+        super().__init__(env=env, dqn_net=dqn_net, dtype=dtype, device=device)
+        self.env = env
+        self.dqn_config = dqn_config
+        self.optimizer = optimizer
+        self._targ_dqn = copy.deepcopy(self._dqn)
+
+    # pl method override
+
+    def configure_optimizers(self):
+        return self.optimizer
+
+    # initialize varaibles for dqn
+    def on_fit_start(self) -> None:
+        self.curr_epsilon = self.dqn_config.epsilon
+        # initialize replay buffer with random policy
+        self.buff = RLDataset(max_size=self.dqn_config.max_buff_size,
+                              batch_size=self.dqn_config.batch_size,
+                              dtype=self._dtype,
+                              device=self._device)
+        buff_utils.populate_replay_buffer(
+            buff=self.buff,
+            env=self.env,
+            policy=self.env.get_random_policy(),
+            target_size=self.dqn_config.batch_size)
+        self.curr_state = self.env.reset()
+        self.is_terminal = False
+        return super().on_fit_start()
+
+    # on episode start
+    def on_epoch_start(self) -> None:
+        # reset the enviornment on each epoch
+        self._curr_state = self.env.reset()
+        self.is_terminal = False
+
+    # on step start
+    def on_train_batch_start(self,
+                             batch: Any,
+                             batch_idx: int,
+                             unused: Optional[int] = 0) -> Union[int, None]:
+        if batch_idx >= self.dqn_config.max_episode_steps or self.is_terminal:
+            return -1
+        return None
+
+    # deep q step
+    def training_step(
+        self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor,
+                           torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        states, actions, next_states, next_rewards, is_terminals = batch
+        self.eval()
+        action, next_state, next_reward, is_terminal = self._eps_greedy_step()
+        self.buff.add_experience(state=self.curr_state,
+                                 action=action,
+                                 next_state=next_state,
+                                 next_reward=next_reward,
+                                 is_terminal=is_terminal)
+        self.train()
+        # dqn.optimizer.zero_grad()
+        target_q_vals: torch.Tensor = self._compute_target(
+            next_states=next_states,
+            next_rewards=next_rewards,
+            is_terminals=is_terminals)
+        # (n_states, n_actions)
+        pred_q_vals: torch.Tensor = self._predict_q_vals(states=states)
+        # (n_states, 1)
+        pred_q_vals = pred_q_vals.gather(1, actions.type(dtype=torch.int64))
+        error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
+        self.curr_state = next_state
+        self.is_terminal = is_terminal
+        return error
+
+    def on_train_epoch_end(self) -> None:
+        if self.current_epoch % self.dqn_config.epsilon_update_episodes == 0:
+            self.curr_epsilon = self.curr_epsilon * self.dqn_config.epsilon_decay
+        if self.current_epoch % self.dqn_config.targ_update_episodes == 0:
+            self._update_targ()
+        return super().on_train_epoch_end()
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(self.buff, batch_size=self.dqn_config.batch_size)
+
+    def train(self, mode: bool = True) -> "DQNTrain":
+        if mode == True:
+            if self._targ_dqn is None:
+                self._update_targ()
+            self.dqn.train()
+        else:
+            self.dqn.eval()
+        return self
+
+    def eval(self) -> "DQNTrain":
         """Set the dqn to eval mode.
         """
         self.dqn.eval()
+        return self
 
+    # dqn specific method
+
+    @torch.no_grad()
     def _compute_target(self, next_states: torch.Tensor,
-                        next_rewards: torch.Tensor, is_terminals: torch.Tensor,
-                        dqn_config: DQNConfig) -> torch.Tensor:
+                        next_rewards: torch.Tensor,
+                        is_terminals: torch.Tensor) -> torch.Tensor:
         """Compute target q values given a tensor representation for states.
 
         Args:
@@ -149,7 +242,7 @@ class DQN:
         Returns:
             target_q_vals (torch.Tensor): (n_states, 1) The target value.
         """
-        next_states.to(dtype=self.dtype, device=self.device)
+        next_states.to(dtype=self._dtype, device=self._device)
         # (n_states, n_actions)
         next_q_vals: torch.Tensor = self.targ_dqn(next_states)
         next_q_vals = next_q_vals.detach()
@@ -159,150 +252,40 @@ class DQN:
         # current terminal states has no future reward
         next_q_vals[is_terminals] = 0.0
         # (n_states, 1)
-        target_q_vals: torch.Tensor = next_rewards + dqn_config.discount * next_q_vals
+        target_q_vals: torch.Tensor = next_rewards + self.dqn_config.discount * next_q_vals
         return target_q_vals
+
+    @torch.no_grad()
+    def _eps_greedy_step(self) -> Tuple[Action, State, float, bool]:
+        """Take a step based on epsilon greedy policy.
+
+        Args:
+            env (DiscreteEnvironment): A discrete enviornment.
+            state (State): The current state of the enviornment.
+            dqn (DQN): The dqn.
+            dqn_config (DQNConfig): The hyperparameters for the dqn.
+
+        Returns:
+            action (DiscreteAction): The current action.
+            next_state (State): The next state.
+            next_reward (float): The next reward.
+            is_terminal (bool): Whether next state is terminal.
+        """
+        is_random: bool = np.random.uniform(0, 1) < self.dqn_config.epsilon
+        policy = self
+        if is_random:
+            # ignore type error
+            policy = self.env.get_random_policy()
+        # (1, n_actions)
+        action = policy.sample_action(self.curr_state)
+        next_state, next_reward, is_terminal = self.env.step(
+            action, to_visualize=False)
+        return action, next_state, next_reward, is_terminal
 
     def _update_targ(self):
         """Update target network.
         """
-        if self._targ_dqn is None:
-            self._targ_dqn = copy.deepcopy(self._dqn)
         self.targ_dqn.load_state_dict(self.dqn.state_dict())
         self.targ_dqn.eval()
-
-
-def train_dqn(env: DiscreteEnvironment,
-              dqn: DQN,
-              dqn_config: DQNConfig,
-              replay_buffer: Optional[ReplayBuffer] = None) -> ReplayBuffer:
-    """Train the passed in DQN.
-
-    Args:
-        env (DiscreteEnvironment): The environment to be learned.
-        dqn (DQN): The dqn to be trained. Modified inplace.
-        dqn_config (DQNConfig): The hyperparameter for the DQN.
-        replay_buffer (Optional[ReplayBuffer], optional): The replay buffer. Generated with random policy if None is provided. Defaults to None.
-
-    Returns:
-        ReplayBuffer: The current replay buffer.
-    """
-    # do not directly modify input configuration
-    config: DQNConfig = copy.deepcopy(dqn_config)
-    dqn.train()
-    if replay_buffer is None:
-        replay_buffer = ReplayBuffer.create_random_replay_buffer(
-            env, max_size=config.max_buff_size, target_size=config.batch_size)
-    for curr_eps in range(config.n_episodes):
-        state: State = env.reset()
-        for cur_step in range(config.max_episode_steps):
-            next_state, is_terminal = _deep_q_step(env=env,
-                                                   state=state,
-                                                   dqn=dqn,
-                                                   dqn_config=config,
-                                                   buff=replay_buffer)
-            if is_terminal:
-                break
-            state = next_state
-        if curr_eps % config.epsilon_update_episodes == 0:
-            config.epsilon = config.epsilon * config.epsilon_decay
-        if curr_eps % config.targ_update_episodes == 0:
-            dqn._update_targ()
-        print(str.format("episode: {}/{}", curr_eps + 1, config.n_episodes))
-    return replay_buffer
-
-
-def greedy_step(env: DiscreteEnvironment,
-                state: State,
-                dqn: DQN,
-                to_vis: bool = False) -> Tuple[Action, State, float, bool]:
-    """Take a step based on epsilon greedy policy.
-
-    Args:
-        env (DiscreteEnvironment): A discrete enviornment.
-        state (State): The current state of the enviornment.
-        dqn (DQN): The dqn.
-        to_vis (bool): Whether to visualize or not.
-
-    Returns:
-        action (DiscreteAction): The current action.
-        next_state (State): The next state.
-        next_reward (float): The next reward.
-        is_terminal (bool): Whether next state is terminal.
-    """
-    # (1, n_actions)
-    policy = GreedyDQNPolicy(env=env, dqn=dqn)
-    action = policy.sample_action(state)
-    next_state, next_reward, is_terminal = env.step(action,
-                                                    to_visualize=to_vis)
-    return action, next_state, next_reward, is_terminal
-
-
-def _eps_greedy_step(
-        env: DiscreteEnvironment, state: State, dqn: DQN,
-        dqn_config: DQNConfig) -> Tuple[Action, State, float, bool]:
-    """Take a step based on epsilon greedy policy.
-
-    Args:
-        env (DiscreteEnvironment): A discrete enviornment.
-        state (State): The current state of the enviornment.
-        dqn (DQN): The dqn.
-        dqn_config (DQNConfig): The hyperparameters for the dqn.
-
-    Returns:
-        action (DiscreteAction): The current action.
-        next_state (State): The next state.
-        next_reward (float): The next reward.
-        is_terminal (bool): Whether next state is terminal.
-    """
-    is_random: bool = np.random.uniform(0, 1) < dqn_config.epsilon
-    policy = GreedyDQNPolicy(env=env, dqn=dqn)
-    if is_random:
-        # ignore type error
-        policy = env.get_random_policy()
-    # (1, n_actions)
-    action = policy.sample_action(state)
-    next_state, next_reward, is_terminal = env.step(action, to_visualize=False)
-    return action, next_state, next_reward, is_terminal
-
-
-def _deep_q_step(env: DiscreteEnvironment, state: State, dqn: DQN,
-                 dqn_config: DQNConfig,
-                 buff: ReplayBuffer) -> Tuple[State, bool]:
-    """Step for deep q network
-
-    Args:
-        env (DiscreteEnvironment): A discrete enviornment.
-        state (State): The current state of the enviornment.
-        dqn (DQN): The dqn.
-        dqn_config (DQNConfig): The hyperparameters for the dqn.
-        buff (ReplayBuffer): The replay buffer.
-
-    Returns:
-        next_state (State): The next state.
-        is_termianl (bool): Whether next state is terminal.
-    """
-    dqn.eval()
-    action, next_state, next_reward, is_terminal = _eps_greedy_step(
-        env=env, state=state, dqn=dqn, dqn_config=dqn_config)
-    buff.add_experience(state=state,
-                        action=action,
-                        next_state=next_state,
-                        next_reward=next_reward,
-                        is_terminal=is_terminal)
-    states, actions, next_states, next_rewards, is_terminals = buff.sample_experiences(
-        dqn_config.batch_size, dqn.dtype, dqn.device)
-    dqn.train()
-    dqn.optimizer.zero_grad()
-    target_q_vals: torch.Tensor = dqn._compute_target(
-        next_states=next_states,
-        next_rewards=next_rewards,
-        is_terminals=is_terminals,
-        dqn_config=dqn_config)
-    # (n_states, n_actions)
-    pred_q_vals: torch.Tensor = dqn._predict_q_vals(states=states)
-    # (n_states, 1)
-    pred_q_vals = pred_q_vals.gather(1, actions)
-    error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
-    error.backward()
-    dqn.optimizer.step()
-    return next_state, is_terminal
+        for param in self.targ_dqn.parameters():
+            param.requires_grad = False
