@@ -12,6 +12,7 @@ from mdps import mdp_utils
 from mdps.mdp_abc import (Action, DiscreteAction, DiscreteEnvironment, Metrics,
                           PolicyBase, State)
 from torch import nn
+from torch.utils.data import TensorDataset
 from torch.utils.data.dataloader import DataLoader
 
 
@@ -106,6 +107,7 @@ class DQNTrain(DQN, pl.LightningModule):
     buff: RLDataset
     curr_state: State
     is_terminal: bool
+    n_val_episodes: int
 
     @property
     def targ_dqn(self) -> nn.Module:
@@ -126,6 +128,7 @@ class DQNTrain(DQN, pl.LightningModule):
         dqn_net: nn.Module,
         dqn_config: DQNConfig,
         optimizer: torch.optim.Optimizer,
+        n_val_episodes: int = 10,
         dtype: torch.dtype = torch.float,
         device: torch.device = torch.device("cpu")
     ) -> None:
@@ -134,6 +137,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self.dqn_config = dqn_config
         self.optimizer = optimizer
         self._targ_dqn = copy.deepcopy(self._dqn)
+        self.n_val_episodes = n_val_episodes
 
     # pl method override
 
@@ -141,6 +145,10 @@ class DQNTrain(DQN, pl.LightningModule):
         return self.optimizer
 
     # initialize varaibles for dqn
+    # train
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(self.buff, batch_size=self.dqn_config.batch_size)
+
     def on_fit_start(self) -> None:
         self.curr_epsilon = self.dqn_config.epsilon
         # initialize replay buffer with random policy
@@ -207,8 +215,26 @@ class DQNTrain(DQN, pl.LightningModule):
             self._update_targ()
         return super().on_train_epoch_end()
 
-    def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.buff, batch_size=self.dqn_config.batch_size)
+    # val
+    def val_dataloader(self) -> DataLoader:
+        # just a dummy
+        return DataLoader(dataset=TensorDataset(
+            torch.tensor(np.array([self.n_val_episodes]))),
+                          batch_size=1)
+
+    def validation_step(self, batch: Tuple[torch.Tensor], batch_idx):
+        metrics: Sequence[Metrics] = mdp_utils.simulate_episodes(
+            self.env,
+            policy=self,
+            max_episode_steps=self.dqn_config.max_episode_steps,
+            n_episodes=self.n_val_episodes,
+            to_visualize=False)
+        return metrics
+
+    def validation_epoch_end(self, outputs: Sequence[Sequence[Metrics]]):
+        metrics_seq: Sequence[Metrics] = outputs[0]
+        metrics_dict = self.env.summarize_metrics_seq(metrics_seq)
+        self.log_dict(metrics_dict)
 
     def train(self, mode: bool = True) -> "DQNTrain":
         if mode == True:
