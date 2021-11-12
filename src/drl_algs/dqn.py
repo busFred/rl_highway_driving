@@ -234,7 +234,7 @@ class DQNTrain(DQN, pl.LightningModule):
     def validation_epoch_end(self, outputs: Sequence[Sequence[Metrics]]):
         metrics_seq: Sequence[Metrics] = outputs[0]
         metrics_dict = self.env.summarize_metrics_seq(metrics_seq)
-        self.log_dict(metrics_dict)
+        self.log_dict(metrics_dict, prog_bar=True)
 
     def train(self, mode: bool = True) -> "DQNTrain":
         if mode == True:
