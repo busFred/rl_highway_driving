@@ -7,15 +7,15 @@ import pytorch_lightning as pl
 import pytorch_lightning.loggers as pl_loggers
 import torch
 from drl_algs import dqn as alg_dqn
-from int_mpc.mdps.change_lane import ChangeLaneEnv
+from int_mpc.mdps.change_lane import ChangeLaneConfig, ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN
 
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("--dqn_config_path", type=str, required=True)
+    parser.add_argument("--env_config", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
-    parser.add_argument("--vehicles_count", type=int, default=100)
     parser.add_argument("--n_val_episodes", type=int, default=20)
     parser.add_argument("--to_vis", action="store_true")
     return parser
@@ -27,11 +27,28 @@ def parse_args(args: Sequence[str]):
     return argv
 
 
-def get_config(dqn_config_path: str):
+def get_env_config(env_config_path: str):
+    env_config: ChangeLaneConfig
+    with open(env_config_path, "r") as config_file:
+        env_config = ChangeLaneConfig.from_json(config_file.read())
+    return env_config
+
+
+def get_dqn_config(dqn_config_path: str):
     dqn_config: alg_dqn.DQNConfig
     with open(dqn_config_path, "r") as config_file:
         dqn_config = alg_dqn.DQNConfig.from_json(config_file.read())
     return dqn_config
+
+
+def get_experiment_name(env_config_path: str, dqn_config_path: str) -> str:
+    env_conf_filename: str = os.path.split(env_config_path)[-1]
+    env_conf_filename = os.path.splitext(env_conf_filename)[0]
+    dqn_conf_filename: str = os.path.split(dqn_config_path)[-1]
+    dqn_conf_filename = os.path.splitext(dqn_conf_filename)[0]
+    exp_name: str = str.format("env_{}_dqn_{}", env_conf_filename,
+                               dqn_conf_filename)
+    return exp_name
 
 
 def main(args: Sequence[str]):
@@ -39,25 +56,32 @@ def main(args: Sequence[str]):
     # create export path
     os.makedirs(argv.export_path, exist_ok=True)
     # configure environment
-    env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
+    env_config: ChangeLaneConfig = get_env_config(argv.env_config)
+    env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
+                        vehicles_count=env_config.vehicles_count,
+                        initial_spacing=env_config.initial_spacing,
+                        alpha=env_config.alpha,
+                        beta=env_config.beta,
+                        reward_speed_range=env_config.reward_speed_range)
     # create dqn
     net = LinearDQN()
     # get configuration
-    dqn_config: alg_dqn.DQNConfig = get_config(argv.dqn_config_path)
+    dqn_config: alg_dqn.DQNConfig = get_dqn_config(argv.dqn_config_path)
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
                            n_val_episodes=argv.n_val_episodes,
                            optimizer=torch.optim.Adam(net.parameters()))
-    config_filename: str = os.path.split(argv.dqn_config_path)[-1]
-    config_filename = os.path.splitext(config_filename)[0]
+    # configure experiment name
+    exp_name: str = get_experiment_name(argv.env_config_path,
+                                        argv.dqn_config_path)
     loggers = [
         pl_loggers.TensorBoardLogger(save_dir=argv.export_path,
-                                     name=config_filename + "_tfb",
+                                     name=exp_name + "_tfb",
                                      default_hp_metric=False),
-        pl_loggers.CSVLogger(save_dir=argv.export_path,
-                             name=config_filename + "_csv")
+        pl_loggers.CSVLogger(save_dir=argv.export_path, name=exp_name + "_csv")
     ]
+    # train the dqn
     trainer = pl.Trainer(max_epochs=dqn_config.n_episodes,
                          logger=loggers,
                          gpus=-1,
@@ -66,7 +90,7 @@ def main(args: Sequence[str]):
 
     trainer.fit(dqn)
     # export model
-    model_path: str = os.path.join(argv.export_path, config_filename + ".pt")
+    model_path: str = os.path.join(argv.export_path, exp_name + ".pt")
     torch.save(dqn.dqn, model_path)
 
 
