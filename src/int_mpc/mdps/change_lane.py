@@ -164,7 +164,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     speed=info["speed"],
                                     is_crashed=info["crashed"],
                                     cost=info["cost"])
-        reward: float = self._calculate_reward(state=state,
+        reward: float = self._calculate_reward(state=mdp_state,
                                                env_reward=env_reward)
         self._total_steps = self._total_steps + 1
         self._end_state = deepcopy(mdp_state)
