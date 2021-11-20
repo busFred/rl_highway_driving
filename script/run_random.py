@@ -42,7 +42,7 @@ def get_env_config(env_config_path: str):
 
 def print_summary(summary: Dict[str, float]):
     for k in summary.keys():
-        print(str.format("{}: ", k, summary[k]))
+        print(str.format("{}: {}", k, summary[k]))
 
 
 def main(args: Sequence[str]):
@@ -91,6 +91,7 @@ def main(args: Sequence[str]):
                                          "summary.csv")
         with open(summary_path, "w") as summary_file:
             writer = csv.DictWriter(summary_file, summary.keys())
+            writer.writeheader()
             writer.writerow(summary)
 
 
