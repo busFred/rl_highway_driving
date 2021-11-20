@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
-from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import (ChangeLaneConfig, ChangeLaneEnv,
                                       ChangeLaneMetrics)
 from mdps import mdp_utils
@@ -17,14 +16,13 @@ matplotlib.use("agg")
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--env_config", type=str, required=True)
+    parser.add_argument("--env_config_path", type=str, required=True)
     parser.add_argument(
         "--export_metrics_dir",
         type=str,
         default=None,
         help="path to the directory containing exported metric")
     parser.add_argument("--n_test_episodes", type=int, default=100)
-    parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
     return parser
 
@@ -42,13 +40,6 @@ def get_env_config(env_config_path: str):
     return env_config
 
 
-def get_dqn_config(dqn_config_path: str):
-    dqn_config: alg_dqn.DQNConfig
-    with open(dqn_config_path, "r") as config_file:
-        dqn_config = alg_dqn.DQNConfig.from_json(config_file.read())
-    return dqn_config
-
-
 def print_summary(summary: Dict[str, float]):
     for k in summary.keys():
         print(str.format("{}: ", k, summary[k]))
@@ -64,7 +55,7 @@ def main(args: Sequence[str]):
                                            "crash_screenshot")
         os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
-    env_config = get_env_config(argv.env_config)
+    env_config = get_env_config(argv.env_config_path)
     env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
                         vehicles_count=env_config.vehicles_count,
                         initial_spacing=env_config.initial_spacing,
