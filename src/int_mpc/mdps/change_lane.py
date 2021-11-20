@@ -23,7 +23,7 @@ class ChangeLaneConfig:
     lanes_count: int = field(default=4)
     vehicles_count: int = field(default=100)
     initial_spacing: float = field(default=1.0)
-    max_episode_step: int = field(default=30)
+    max_episode_steps: int = field(default=30)
     alpha: float = field(default=0.4)
     beta: float = field(default=-1.0)
     reward_speed_range: Tuple[float, float] = field(
