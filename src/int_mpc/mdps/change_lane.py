@@ -1,7 +1,8 @@
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import (Any, Dict, List, MutableSequence, Optional, Sequence,
+                    Tuple, Union)
 
 import numpy as np
 from dataclasses_json import dataclass_json
@@ -32,6 +33,7 @@ class ChangeLaneConfig:
 
 @dataclass
 class ChangeLaneMetrics(Metrics):
+    total_reward: float = field()
     distance_travel: float = field()
     terminated_crash: bool = field()
     n_steps_to_crash: int = field()
@@ -95,6 +97,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
     _total_steps: int
     _start_state: Union[HighwayEnvState, None]
     _end_state: Union[HighwayEnvState, None]
+    _reward_hist: MutableSequence[float]
 
     # public methods
     def __init__(
@@ -128,6 +131,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._total_steps = 0
         self._start_state = None
         self._end_state = None
+        self._reward_hist = list()
 
     @overrides
     def step(
@@ -175,6 +179,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         """
         self._env.close()
         _ = self._env.reset()
+        self._reward_hist.clear()
         observation: np.ndarray = self._make_observation()
         mdp_state = HighwayEnvState(observation=observation,
                                     speed=-1.0,
@@ -191,6 +196,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             raise ValueError("begin state initialized properly")
         if self._end_state is None:
             raise ValueError("end state not initialized")
+        total_rewards: float = np.sum(self._reward_hist)
         start_loc: float = self._start_state.observation[0, 0]
         end_loc: float = self._end_state.observation[0, 0]
         distance_travel: float = end_loc - start_loc
@@ -198,7 +204,8 @@ class ChangeLaneEnv(DiscreteEnvironment):
         n_steps_to_crash: int = self._total_steps if terminated_crash else -1
         screenshot: Union[np.ndarray, None] = self._env.render(
             mode="rgb_array") if terminated_crash else None
-        metrics = ChangeLaneMetrics(distance_travel=distance_travel,
+        metrics = ChangeLaneMetrics(total_reward=total_rewards,
+                                    distance_travel=distance_travel,
                                     terminated_crash=terminated_crash,
                                     n_steps_to_crash=n_steps_to_crash,
                                     screenshot=screenshot)
@@ -209,21 +216,27 @@ class ChangeLaneEnv(DiscreteEnvironment):
             self, metrics_seq: Sequence[Metrics]) -> Dict[str, float]:
         distance_travel: List[float] = list()
         steps_to_crash: List[int] = list()
+        total_rewards: List[float] = list()
         for metric in metrics_seq:
             if isinstance(metric, ChangeLaneMetrics):
                 distance_travel.append(metric.distance_travel)
+                total_rewards.append(metric.total_reward)
                 if metric.terminated_crash:
                     steps_to_crash.append(metric.n_steps_to_crash)
             else:
                 raise ValueError
+        avg_total_reward: float = np.mean(total_rewards)
         avg_distance: float = np.mean(distance_travel)
         avg_steps_to_crash: float = np.mean(steps_to_crash)
+        std_total_reward: float = np.std(total_rewards)
         std_distance: float = np.std(distance_travel)
         std_steps_to_crash: float = np.std(steps_to_crash)
         n_crashes: int = len(steps_to_crash)
         metrics_dict: Dict[str, float] = {
+            "avg_total_reward": avg_total_reward,
             "avg_distance": avg_distance,
             "avg_steps_to_crash": avg_steps_to_crash,
+            "std_total_reward": std_total_reward,
             "std_distance": std_distance,
             "std_steps_to_crash": std_steps_to_crash,
             "n_crashes": n_crashes
@@ -327,6 +340,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         Returns:
             reward (float): The current reward.
         """
+        self._reward_hist.append(env_reward)
         # currently use the system built-in reward formula
         return env_reward
 
