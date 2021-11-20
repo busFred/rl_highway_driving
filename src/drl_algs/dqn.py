@@ -24,7 +24,6 @@ class DQNConfig:
     epsilon_decay: float = field(default=0.99)
     epsilon_update_episodes: int = field(default=20)
     n_episodes: int = field(default=1000)
-    max_episode_steps: int = field(default=30)
     max_buff_size: int = field(default=10000)
     batch_size: int = field(default=100)
     targ_update_episodes: int = field(default=20)
@@ -107,6 +106,7 @@ class DQNTrain(DQN, pl.LightningModule):
     buff: RLDataset
     curr_state: State
     is_terminal: bool
+    max_episode_steps: int
     n_val_episodes: int
 
     @property
@@ -128,6 +128,7 @@ class DQNTrain(DQN, pl.LightningModule):
         dqn_net: nn.Module,
         dqn_config: DQNConfig,
         optimizer: torch.optim.Optimizer,
+        max_episode_steps: int = 30,
         n_val_episodes: int = 10,
         dtype: torch.dtype = torch.float,
         device: torch.device = torch.device("cpu")
@@ -137,6 +138,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self.dqn_config = dqn_config
         self.optimizer = optimizer
         self._targ_dqn = copy.deepcopy(self._dqn)
+        self.max_episode_steps = max_episode_steps
         self.n_val_episodes = n_val_episodes
 
     # pl method override
@@ -176,7 +178,7 @@ class DQNTrain(DQN, pl.LightningModule):
                              batch: Any,
                              batch_idx: int,
                              unused: Optional[int] = 0) -> Union[int, None]:
-        if batch_idx >= self.dqn_config.max_episode_steps or self.is_terminal:
+        if batch_idx >= self.max_episode_steps or self.is_terminal:
             return -1
         return None
 
@@ -226,7 +228,7 @@ class DQNTrain(DQN, pl.LightningModule):
         metrics: Sequence[Metrics] = mdp_utils.simulate_episodes(
             self.env,
             policy=self,
-            max_episode_steps=self.dqn_config.max_episode_steps,
+            max_episode_steps=self.max_episode_steps,
             n_episodes=self.n_val_episodes,
             to_visualize=False)
         return metrics
