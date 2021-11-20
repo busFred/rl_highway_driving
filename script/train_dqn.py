@@ -13,8 +13,8 @@ from int_mpc.nnet.change_lane.dqn import LinearDQN
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--env_config", type=str, required=True)
+    parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--n_val_episodes", type=int, default=20)
     parser.add_argument("--to_vis", action="store_true")
@@ -63,10 +63,9 @@ def main(args: Sequence[str]):
                         alpha=env_config.alpha,
                         beta=env_config.beta,
                         reward_speed_range=env_config.reward_speed_range)
-    # create dqn
-    net = LinearDQN()
-    # get configuration
+    # get dqn
     dqn_config: alg_dqn.DQNConfig = get_dqn_config(argv.dqn_config_path)
+    net = LinearDQN()
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
