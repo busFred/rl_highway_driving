@@ -1,23 +1,25 @@
+import csv
 import os
 import pickle
 import sys
 from argparse import ArgumentParser, Namespace
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from drl_algs import dqn as alg_dqn
-from int_mpc.mdps.change_lane import ChangeLaneEnv, ChangeLaneMetrics
-from mdps.mdp_utils import simulate
+from int_mpc.mdps.change_lane import (ChangeLaneConfig, ChangeLaneEnv,
+                                      ChangeLaneMetrics)
+from mdps import mdp_utils
 
 matplotlib.use("agg")
 
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--model_path",
+    parser.add_argument("--env_config", type=str, required=True)
+    parser.add_argument("--dqn_path",
                         type=str,
                         required=True,
                         help="path to the serialized dqn")
@@ -26,8 +28,6 @@ def create_argparse() -> ArgumentParser:
         type=str,
         default=None,
         help="path to the directory containing exported metric")
-    parser.add_argument("--vehicles_count", type=int, default=200)
-    parser.add_argument("--max_episode_steps", type=int, default=50)
     parser.add_argument("--n_test_episodes", type=int, default=1000)
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
@@ -40,11 +40,23 @@ def parse_args(args: Sequence[str]):
     return argv
 
 
-def get_config(dqn_config_path: str):
+def get_env_config(env_config_path: str):
+    env_config: ChangeLaneConfig
+    with open(env_config_path, "r") as config_file:
+        env_config = ChangeLaneConfig.from_json(config_file.read())
+    return env_config
+
+
+def get_dqn_config(dqn_config_path: str):
     dqn_config: alg_dqn.DQNConfig
     with open(dqn_config_path, "r") as config_file:
         dqn_config = alg_dqn.DQNConfig.from_json(config_file.read())
     return dqn_config
+
+
+def print_summary(summary: Dict[str, float]):
+    for k in summary.keys():
+        print(str.format("{}: ", k, summary[k]))
 
 
 def main(args: Sequence[str]):
@@ -57,19 +69,24 @@ def main(args: Sequence[str]):
                                            "crash_screenshot")
         os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
-    env = ChangeLaneEnv(vehicles_count=argv.vehicles_count)
+    env_config = get_env_config(argv.env_config)
+    env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
+                        vehicles_count=env_config.vehicles_count,
+                        initial_spacing=env_config.initial_spacing,
+                        alpha=env_config.alpha,
+                        beta=env_config.beta,
+                        reward_speed_range=env_config.reward_speed_range)
     # create dqn
-    net = torch.load(argv.model_path)
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
-    dqn = alg_dqn.DQN(dqn=net, device=device)
-    policy = alg_dqn.GreedyDQNPolicy(env=env, dqn=dqn)
+    net = torch.load(argv.model_path)
+    dqn_policy = alg_dqn.DQN(env=env, dqn_net=net, device=device)
     # generate test metrics.
     metrics_l: List[ChangeLaneMetrics] = list()
     for curr_sim_eps in range(argv.n_test_episodes):
         print(str.format("val {}/{}", curr_sim_eps + 1, argv.n_test_episodes))
-        metrics: ChangeLaneMetrics = simulate(
+        metrics: ChangeLaneMetrics = mdp_utils.simulate(
             env=env,
-            policy=policy,
+            policy=dqn_policy,
             max_episode_steps=argv.max_episode_steps,
             to_visualize=argv.to_vis)
         if metrics.screenshot is not None and argv.export_metrics_dir is not None and screenshot_dir_path is not None:
@@ -79,10 +96,18 @@ def main(args: Sequence[str]):
             plt.savefig(screenshot_path)
             plt.close()
         metrics_l.append(metrics)
-    # serialize metrics
+    # summarize metrics
+    summary: Dict[str, float] = env.summarize_metrics_seq(metrics_l)
+    print_summary(summary)
+    # serialize metrics upon request
     if argv.export_metrics_dir is not None:
         metric_path: str = os.path.join(argv.export_metrics_dir, "metrics.pkl")
         pickle.dump(metrics_l, open(metric_path, "wb"))
+        summary_path: str = os.path.join(argv.export_metrics_dir,
+                                         "summary.csv")
+        with open(summary_path, "w") as summary_file:
+            writer = csv.DictWriter(summary_file, summary.keys())
+            writer.writerow(summary)
 
 
 if __name__ == "__main__":
