@@ -4,7 +4,6 @@
     "epsilon_update_episodes": 20,
     "discount": 0.9,
     "n_episodes": 500,
-    "max_episode_steps": 30,
     "max_buff_size": 10,
     "batch_size": 10,
     "targ_update_episodes": 20

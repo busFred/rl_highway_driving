@@ -2,6 +2,7 @@
     "lane_counts": 4,
     "vehicles_count": 50,
     "initial_spacing": 1.0,
+    "max_episode_step": 30,
     "alpha": 0.4,
     "beta": -1.0,
     "reward_speed_range": [
