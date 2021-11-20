@@ -28,7 +28,7 @@ def create_argparse() -> ArgumentParser:
         type=str,
         default=None,
         help="path to the directory containing exported metric")
-    parser.add_argument("--n_test_episodes", type=int, default=1000)
+    parser.add_argument("--n_test_episodes", type=int, default=100)
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--to_vis", action="store_true")
     return parser
@@ -87,7 +87,7 @@ def main(args: Sequence[str]):
         metrics: ChangeLaneMetrics = mdp_utils.simulate(
             env=env,
             policy=dqn_policy,
-            max_episode_steps=argv.max_episode_steps,
+            max_episode_steps=env_config.max_episode_steps,
             to_visualize=argv.to_vis)
         if metrics.screenshot is not None and argv.export_metrics_dir is not None and screenshot_dir_path is not None:
             screenshot_path: str = os.path.join(
