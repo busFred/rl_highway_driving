@@ -70,6 +70,7 @@ def main(args: Sequence[str]):
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
+                           max_episode_steps=env_config.max_episode_steps,
                            n_val_episodes=argv.n_val_episodes,
                            optimizer=torch.optim.Adam(net.parameters()))
     # configure experiment name
