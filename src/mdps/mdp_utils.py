@@ -1,3 +1,4 @@
+import multiprocessing as mp
 from typing import Sequence
 
 import numpy as np
@@ -61,12 +62,9 @@ def simulate_episodes(env: Environment,
     Returns:
         metrics (Sequence[Metrics]): The metrics of the all the episodes.
     """
-    # TODO parallelize this piece of code.
-    metrics: Sequence[Metrics] = list()
-    for curr_eps in range(n_episodes):
-        curr_metrics = simulate(env=env,
-                                policy=policy,
-                                max_episode_steps=max_episode_steps,
-                                to_visualize=to_visualize)
-        metrics.append(curr_metrics)
+    with mp.Pool() as pool:
+        metrics: Sequence[Metrics] = pool.starmap(
+            simulate, [(env, policy, max_episode_steps, to_visualize)
+                       for _ in range(n_episodes)])
+        print(type(metrics))
     return metrics
