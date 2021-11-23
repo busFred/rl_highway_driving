@@ -166,7 +166,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         if (self._DEFAULT_ACTION is not None) and \
             (action not in self._env.get_available_actions()):
             action = self._DEFAULT_ACTION
-        _, reward, is_terminal, info = self._env.step(action=action)
+        _, env_reward, is_terminal, info = self._env.step(action=action)
         observation: np.ndarray = self._make_observation()
         # info = {'speed': 29.1455588268693, 'crashed': False, 'action': 3, 'cost': 0.0}
         mdp_state = HighwayEnvState(observation=observation,
