@@ -18,7 +18,7 @@ matplotlib.use("agg")
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--env_config", type=str, required=True)
+    parser.add_argument("--env_config_path", type=str, required=True)
     parser.add_argument("--dqn_path",
                         type=str,
                         required=True,
@@ -69,7 +69,7 @@ def main(args: Sequence[str]):
                                            "crash_screenshot")
         os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
-    env_config = get_env_config(argv.env_config)
+    env_config = get_env_config(argv.env_config_path)
     env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
                         vehicles_count=env_config.vehicles_count,
                         initial_spacing=env_config.initial_spacing,

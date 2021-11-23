@@ -13,7 +13,7 @@ from int_mpc.nnet.change_lane.dqn import LinearDQN
 
 def create_argparse() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--env_config", type=str, required=True)
+    parser.add_argument("--env_config_path", type=str, required=True)
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--n_val_episodes", type=int, default=20)
@@ -56,7 +56,7 @@ def main(args: Sequence[str]):
     # create export path
     os.makedirs(argv.export_path, exist_ok=True)
     # configure environment
-    env_config: ChangeLaneConfig = get_env_config(argv.env_config)
+    env_config: ChangeLaneConfig = get_env_config(argv.env_config_path)
     env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
                         vehicles_count=env_config.vehicles_count,
                         initial_spacing=env_config.initial_spacing,

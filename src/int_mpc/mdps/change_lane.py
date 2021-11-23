@@ -173,8 +173,11 @@ class ChangeLaneEnv(DiscreteEnvironment):
                                     speed=info["speed"],
                                     is_crashed=info["crashed"],
                                     cost=info["cost"])
+        reward: float = self._calculate_reward(state=mdp_state.observation,
+                                               env_reward=env_reward)
         self._total_steps = self._total_steps + 1
         self._end_state = deepcopy(mdp_state)
+        self._reward_hist.append(reward)
         if to_visualize:
             self._env.render()
         return mdp_state, action, reward, is_terminal
@@ -213,7 +216,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             raise ValueError("begin state initialized properly")
         if self._end_state is None:
             raise ValueError("end state not initialized")
-        total_rewards: float = np.sum(self._reward_hist)
+        total_reward: float = np.sum(self._reward_hist)
         start_loc: float = self._start_state.observation[0, 0]
         end_loc: float = self._end_state.observation[0, 0]
         distance_travel: float = end_loc - start_loc
@@ -221,7 +224,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         n_steps_to_crash: int = self._total_steps if terminated_crash else -1
         screenshot: Union[np.ndarray, None] = self._env.render(
             mode="rgb_array") if terminated_crash else None
-        metrics = ChangeLaneMetrics(total_reward=total_rewards,
+        metrics = ChangeLaneMetrics(total_reward=total_reward,
                                     distance_travel=distance_travel,
                                     terminated_crash=terminated_crash,
                                     n_steps_to_crash=n_steps_to_crash,
@@ -370,7 +373,6 @@ class ChangeLaneEnv(DiscreteEnvironment):
         Returns:
             reward (float): The current reward.
         """
-        self._reward_hist.append(env_reward)
         # currently use the system built-in reward formula
         return env_reward
 
