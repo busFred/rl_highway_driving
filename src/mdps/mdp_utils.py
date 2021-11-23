@@ -36,7 +36,7 @@ def simulate(env: Environment,
     # step until timeout occurs
     for curr_step in range(max_episode_steps):
         action: Action = policy.sample_action(state)
-        next_state, _, _, is_terminal = env.step(action=action,
+        _, next_state, _, is_terminal = env.step(action=action,
                                                  to_visualize=to_visualize)
         state = next_state
         if is_terminal:
@@ -66,5 +66,4 @@ def simulate_episodes(env: Environment,
         metrics: Sequence[Metrics] = pool.starmap(
             simulate, [(env, policy, max_episode_steps, to_visualize)
                        for _ in range(n_episodes)])
-        print(type(metrics))
     return metrics

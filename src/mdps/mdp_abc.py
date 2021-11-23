@@ -72,7 +72,7 @@ class Environment(ABC):
     @abstractmethod
     def step(self,
              action: Action,
-             to_visualize: bool = False) -> Tuple[State, Action, float, bool]:
+             to_visualize: bool = False) -> Tuple[Action, State, float, bool]:
         """Take an action.
 
         Args:
@@ -128,5 +128,5 @@ class DiscreteEnvironment(Environment):
     @overrides
     def step(self,
              action: Action,
-             to_visualize: bool = False) -> Tuple[State, Action, float, bool]:
+             to_visualize: bool = False) -> Tuple[Action, State, float, bool]:
         pass

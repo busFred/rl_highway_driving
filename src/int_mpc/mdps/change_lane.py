@@ -141,7 +141,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self,
         action: Action,
         to_visualize: bool = False
-    ) -> Tuple[HighwayEnvState, HighwayEnvDiscreteAction, float, bool]:
+    ) -> Tuple[HighwayEnvDiscreteAction, HighwayEnvState, float, bool]:
         """Take an action.
 
         Args:
@@ -180,7 +180,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._reward_hist.append(reward)
         if to_visualize:
             self._env.render()
-        return mdp_state, action, reward, is_terminal
+        return action, mdp_state, reward, is_terminal
 
     @overrides
     def reset(self) -> HighwayEnvState:

@@ -306,7 +306,7 @@ class DQNTrain(DQN, pl.LightningModule):
             policy = self.env.get_random_policy()
         # (1, n_actions)
         action = policy.sample_action(self.curr_state)
-        next_state, action, next_reward, is_terminal = self.env.step(
+        action, next_state, next_reward, is_terminal = self.env.step(
             action, to_visualize=False)
         return action, next_state, next_reward, is_terminal
 
