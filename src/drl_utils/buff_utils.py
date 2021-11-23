@@ -37,6 +37,17 @@ class ReplayBuffer:
         self._replay_buff.append(
             (state, action, next_reward, next_state, is_terminal))
 
+    def extend(self, buff: "ReplayBuffer"):
+        """Extend the current replay buffer with another buffer.
+
+        Args:
+            buff (ReplayBuffer): The replay buffer used for extension.
+        """
+        for exp in buff._replay_buff:
+            state, action, next_reward, next_state, is_terminal = exp
+            self.add_experience(state, action, next_state, next_reward,
+                                is_terminal)
+
     def sample_experiences(self,
                            batch_size: int,
                            dtype: torch.dtype = torch.float,
