@@ -1,4 +1,5 @@
 import csv
+import enum
 import os
 import pickle
 import sys
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 from int_mpc.mdps.change_lane import (ChangeLaneConfig, ChangeLaneEnv,
                                       ChangeLaneMetrics)
 from mdps import mdp_utils
+from mdps.mdp_abc import Metrics
 
 matplotlib.use("agg")
 
@@ -65,21 +67,23 @@ def main(args: Sequence[str]):
     # create dqn
     policy = env.get_random_policy()
     # generate test metrics.
-    metrics_l: List[ChangeLaneMetrics] = list()
-    for curr_sim_eps in range(argv.n_test_episodes):
-        print(str.format("val {}/{}", curr_sim_eps + 1, argv.n_test_episodes))
-        metrics: ChangeLaneMetrics = mdp_utils.simulate(
-            env=env,
-            policy=policy,
-            max_episode_steps=env_config.max_episode_steps,
-            to_visualize=argv.to_vis)
-        if metrics.screenshot is not None and argv.export_metrics_dir is not None and screenshot_dir_path is not None:
+    # metrics_l: List[ChangeLaneMetrics] = list()
+    metrics_l: Sequence[Metrics] = mdp_utils.simulate_episodes(
+        env=env,
+        policy=policy,
+        max_episode_steps=env_config.max_episode_steps,
+        n_episodes=argv.n_test_episodes,
+        to_visualize=argv.to_vis)
+    for curr_sim_eps, metrics in enumerate(metrics_l):
+        if isinstance(metrics, ChangeLaneMetrics)\
+            and metrics.screenshot is not None\
+            and argv.export_metrics_dir is not None\
+            and screenshot_dir_path is not None:
             screenshot_path: str = os.path.join(
                 screenshot_dir_path, str.format("eps_{}.png", curr_sim_eps))
             plt.imshow(metrics.screenshot)
             plt.savefig(screenshot_path)
             plt.close()
-        metrics_l.append(metrics)
     # summarize metrics
     summary: Dict[str, float] = env.summarize_metrics_seq(metrics_l)
     print_summary(summary)
