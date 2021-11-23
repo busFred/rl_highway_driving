@@ -35,8 +35,8 @@ def simulate(env: Environment,
     # step until timeout occurs
     for curr_step in range(max_episode_steps):
         action: Action = policy.sample_action(state)
-        next_state, _, is_terminal = env.step(action=action,
-                                              to_visualize=to_visualize)
+        next_state, _, _, is_terminal = env.step(action=action,
+                                                 to_visualize=to_visualize)
         state = next_state
         if is_terminal:
             break

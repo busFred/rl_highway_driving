@@ -72,7 +72,7 @@ class Environment(ABC):
     @abstractmethod
     def step(self,
              action: Action,
-             to_visualize: bool = False) -> Tuple[State, float, bool]:
+             to_visualize: bool = False) -> Tuple[State, Action, float, bool]:
         """Take an action.
 
         Args:
@@ -81,6 +81,7 @@ class Environment(ABC):
 
         Returns:
             state (State): The next state after taking the passed in action.
+            action (Action): The actual action being taken by the agent.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
@@ -127,5 +128,5 @@ class DiscreteEnvironment(Environment):
     @overrides
     def step(self,
              action: Action,
-             to_visualize: bool = False) -> Tuple[State, float, bool]:
+             to_visualize: bool = False) -> Tuple[State, Action, float, bool]:
         pass

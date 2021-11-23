@@ -126,8 +126,8 @@ def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
     state: State = env.reset()
     while len(buff) < min(target_size, buff._max_size):
         action: Action = policy.sample_action(state)
-        next_state, next_reward, is_terminal = env.step(action=action,
-                                                        to_visualize=False)
+        next_state, action, next_reward, is_terminal = env.step(
+            action=action, to_visualize=False)
         buff.add_experience(state=state,
                             action=action,
                             next_state=next_state,

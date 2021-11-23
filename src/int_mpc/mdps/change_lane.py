@@ -138,9 +138,10 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
     @overrides
     def step(
-            self,
-            action: Action,
-            to_visualize: bool = False) -> Tuple[HighwayEnvState, float, bool]:
+        self,
+        action: Action,
+        to_visualize: bool = False
+    ) -> Tuple[HighwayEnvState, HighwayEnvDiscreteAction, float, bool]:
         """Take an action.
 
         Args:
@@ -153,6 +154,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
         Returns:
             mdp_state (State): The next state after taking the passed in action.
+            action (HighwayEnvDiscreteAction): The actual taken being taken by the environment.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
@@ -175,7 +177,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._end_state = deepcopy(mdp_state)
         if to_visualize:
             self._env.render()
-        return mdp_state, reward, is_terminal
+        return mdp_state, action, reward, is_terminal
 
     @overrides
     def reset(self) -> HighwayEnvState:
