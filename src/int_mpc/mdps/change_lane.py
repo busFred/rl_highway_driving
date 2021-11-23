@@ -98,17 +98,18 @@ class ChangeLaneEnv(DiscreteEnvironment):
     _start_state: Union[HighwayEnvState, None]
     _end_state: Union[HighwayEnvState, None]
     _reward_hist: MutableSequence[float]
+    _DEFAULT_ACTION: Optional[HighwayEnvDiscreteAction]
 
     # public methods
     def __init__(
-        self,
-        lanes_count: int = 4,
-        vehicles_count: int = 50,
-        initial_spacing: float = 1.0,
-        alpha: float = 0.4,
-        beta: float = -1.0,
-        reward_speed_range: Tuple[float, float] = (20, 30)
-    ) -> None:
+            self,
+            lanes_count: int = 4,
+            vehicles_count: int = 50,
+            initial_spacing: float = 1.0,
+            alpha: float = 0.4,
+            beta: float = -1.0,
+            reward_speed_range: Tuple[float, float] = (20, 30),
+            default_action: Optional[HighwayEnvDiscreteAction] = None) -> None:
         """Constructor for ChangeLaneEnv
 
         Args:
@@ -118,6 +119,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
             alpha (float, optional): The magnitude to encourge fast speed. Defaults to 0.4.
             beta (float, optional): The reward signal when having collision with other vehicles. Should be negative real number. Defaults to -1.
             reward_speed_range (Tuple[float, float], optional): The range of speed that is encouraged. Defaults to (20, 30).
+            default_action (Optional[HighwayEnvDiscreteAction]): The default action to take when the action passed in is unavailable.
         """
         super().__init__()
         self._config = ChangeLaneEnv._make_config(
@@ -132,6 +134,7 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._start_state = None
         self._end_state = None
         self._reward_hist = list()
+        self._DEFAULT_ACTION = default_action
 
     @overrides
     def step(
@@ -157,6 +160,10 @@ class ChangeLaneEnv(DiscreteEnvironment):
             raise TypeError
         if action not in HighwayEnvDiscreteAction:
             raise ValueError
+        # if default action is present and the current action is unavailable
+        if (self._DEFAULT_ACTION is not None) and \
+            (action not in self._env.get_available_actions()):
+            action = self._DEFAULT_ACTION
         _, reward, is_terminal, info = self._env.step(action=action)
         observation: np.ndarray = self._make_observation()
         # info = {'speed': 29.1455588268693, 'crashed': False, 'action': 3, 'cost': 0.0}
@@ -192,6 +199,14 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
     @overrides
     def calculate_metrics(self) -> ChangeLaneMetrics:
+        """Calculate the metrics for current episode.
+
+        Raises:
+            ValueError: When episode is not started.
+
+        Returns:
+            ChangeLaneMetrics: The metrics associated with current episode.
+        """
         if self._start_state is None:
             raise ValueError("begin state initialized properly")
         if self._end_state is None:
@@ -214,6 +229,19 @@ class ChangeLaneEnv(DiscreteEnvironment):
     @overrides
     def summarize_metrics_seq(
             self, metrics_seq: Sequence[Metrics]) -> Dict[str, float]:
+        """Summarize a sequence of Metrics.
+
+        Calculate the sample mean and standard deviation for all the recorded value.
+
+        Args:
+            metrics_seq (Sequence[Metrics]): The sequence to be summarized.
+
+        Raises:
+            ValueError: If the passed in metrics is not supported.
+
+        Returns:
+            Dict[str, float]: The summarized sequence.
+        """
         distance_travel: List[float] = list()
         steps_to_crash: List[int] = list()
         total_rewards: List[float] = list()
