@@ -119,6 +119,12 @@ class Environment(ABC):
         """
         pass
 
+    @abstractmethod
+    def new_env_like(self) -> "Environment":
+        """Create a new environment that has same configuration as this instance.
+        """
+        pass
+
 
 class DiscreteEnvironment(Environment):
 
