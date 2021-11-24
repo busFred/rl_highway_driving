@@ -101,12 +101,14 @@ class DQNTrain(DQN, pl.LightningModule):
     dqn_config: DQNConfig
     optimizer: torch.optim.Optimizer
     _targ_dqn: nn.Module
+    max_workers: Optional[int]
 
     # initialized in on_fit_start
-    curr_epsilon: float
-    buff: RLDataset
-    curr_state: State
-    is_terminal: bool
+    _curr_epsilon: float
+    _buff: RLDataset
+    _curr_state: State
+    _curr_step: int
+    _is_terminal: bool
     max_episode_steps: int
     n_val_episodes: int
 
@@ -123,17 +125,16 @@ class DQNTrain(DQN, pl.LightningModule):
         self._targ_dqn.to(device=self._device, dtype=self._dtype)
         return self._targ_dqn
 
-    def __init__(
-        self,
-        env: DiscreteEnvironment,
-        dqn_net: nn.Module,
-        dqn_config: DQNConfig,
-        optimizer: torch.optim.Optimizer,
-        max_episode_steps: int = 30,
-        n_val_episodes: int = 10,
-        dtype: torch.dtype = torch.float,
-        device: torch.device = torch.device("cpu")
-    ) -> None:
+    def __init__(self,
+                 env: DiscreteEnvironment,
+                 dqn_net: nn.Module,
+                 dqn_config: DQNConfig,
+                 optimizer: torch.optim.Optimizer,
+                 max_episode_steps: int = 30,
+                 n_val_episodes: int = 10,
+                 dtype: torch.dtype = torch.float,
+                 device: torch.device = torch.device("cpu"),
+                 max_workers: Optional[int] = None) -> None:
         super().__init__(env=env, dqn_net=dqn_net, dtype=dtype, device=device)
         self.env = env
         self.dqn_config = dqn_config
@@ -141,6 +142,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self._targ_dqn = copy.deepcopy(self._dqn)
         self.max_episode_steps = max_episode_steps
         self.n_val_episodes = n_val_episodes
+        self.max_workers = max_workers
 
     # pl method override
 
@@ -150,53 +152,48 @@ class DQNTrain(DQN, pl.LightningModule):
     # initialize varaibles for dqn
     # train
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.buff, batch_size=self.dqn_config.batch_size)
+        return DataLoader(self._buff, batch_size=self.max_episode_steps)
 
     def on_fit_start(self) -> None:
-        self.curr_epsilon = self.dqn_config.epsilon
+        self._curr_epsilon = self.dqn_config.epsilon
         # initialize replay buffer with random policy
-        self.buff = RLDataset(max_size=self.dqn_config.max_buff_size,
-                              batch_size=self.dqn_config.batch_size,
-                              dtype=self._dtype,
-                              device=self._device)
+        self._buff = RLDataset(max_size=self.dqn_config.max_buff_size,
+                               batch_size=self.dqn_config.batch_size,
+                               dtype=self._dtype,
+                               device=self._device)
         buff_utils.populate_replay_buffer(
-            buff=self.buff,
+            buff=self._buff,
             env=self.env,
             policy=self.env.get_random_policy(),
             max_episode_steps=self.max_episode_steps,
             target_size=self.dqn_config.batch_size)
-        self.curr_state = self.env.reset()
-        self.is_terminal = False
+        self._curr_state = self.env.reset()
+        self._curr_step = 0
+        self._is_terminal = False
         return super().on_fit_start()
 
     # on episode start
     def on_epoch_start(self) -> None:
         # reset the enviornment on each epoch
         self._curr_state = self.env.reset()
-        self.is_terminal = False
-
-    # on step start
-    def on_train_batch_start(self,
-                             batch: Any,
-                             batch_idx: int,
-                             unused: Optional[int] = 0) -> Union[int, None]:
-        if batch_idx >= self.max_episode_steps or self.is_terminal:
-            return -1
-        return None
+        self._curr_step = 0
+        self._is_terminal = False
 
     # deep q step
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor,
                            torch.Tensor, torch.Tensor]
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, None]:
+        if self._curr_step >= self.max_episode_steps or self._is_terminal:
+            return None
         states, actions, next_states, next_rewards, is_terminals = batch
         self.eval()
         action, next_state, next_reward, is_terminal = self._eps_greedy_step()
-        self.buff.add_experience(state=self.curr_state,
-                                 action=action,
-                                 next_state=next_state,
-                                 next_reward=next_reward,
-                                 is_terminal=is_terminal)
+        self._buff.add_experience(state=self._curr_state,
+                                  action=action,
+                                  next_state=next_state,
+                                  next_reward=next_reward,
+                                  is_terminal=is_terminal)
         self.train()
         # dqn.optimizer.zero_grad()
         target_q_vals: torch.Tensor = self._compute_target(
@@ -208,13 +205,14 @@ class DQNTrain(DQN, pl.LightningModule):
         # (n_states, 1)
         pred_q_vals = pred_q_vals.gather(1, actions.type(dtype=torch.int64))
         error: torch.Tensor = nn.SmoothL1Loss()(pred_q_vals, target_q_vals)
-        self.curr_state = next_state
-        self.is_terminal = is_terminal
+        self._curr_state = next_state
+        self._curr_step = self._curr_step + 1
+        self._is_terminal = is_terminal
         return error
 
     def on_train_epoch_end(self) -> None:
         if self.current_epoch % self.dqn_config.epsilon_update_episodes == 0:
-            self.curr_epsilon = self.curr_epsilon * self.dqn_config.epsilon_decay
+            self._curr_epsilon = self._curr_epsilon * self.dqn_config.epsilon_decay
         if self.current_epoch % self.dqn_config.targ_update_episodes == 0:
             self._update_targ()
         return super().on_train_epoch_end()
@@ -223,26 +221,28 @@ class DQNTrain(DQN, pl.LightningModule):
     def val_dataloader(self) -> DataLoader:
         # just a dummy
         return DataLoader(dataset=TensorDataset(
-            torch.tensor(np.array([self.n_val_episodes]))),
+            torch.tensor(np.array([[self.n_val_episodes]]))),
                           batch_size=1)
 
     def validation_step(self, batch: Tuple[torch.Tensor], batch_idx):
         policy: DQN = DQN(env=self.env,
-                          dqn_net=copy.deepcopy(self.dqn),
-                          dtype=self._dtype,
-                          device=self._device)
+                          dqn_net=self.dqn,
+                          dtype=self.dtype,
+                          device=torch.device(self.device))
         metrics: Sequence[Metrics] = mdp_utils.simulate_episodes(
             self.env,
             policy=policy,
             max_episode_steps=self.max_episode_steps,
             n_episodes=self.n_val_episodes,
-            to_visualize=False)
+            to_visualize=False,
+            max_workers=self.max_workers)
         return metrics
 
     def validation_epoch_end(self, outputs: Sequence[Sequence[Metrics]]):
         metrics_seq: Sequence[Metrics] = outputs[0]
         metrics_dict = self.env.summarize_metrics_seq(metrics_seq)
         self.log_dict(metrics_dict, prog_bar=True)
+        # pass
 
     def train(self, mode: bool = True) -> "DQNTrain":
         if mode == True:
@@ -311,7 +311,7 @@ class DQNTrain(DQN, pl.LightningModule):
             # ignore type error
             policy = self.env.get_random_policy()
         # (1, n_actions)
-        action = policy.sample_action(self.curr_state)
+        action = policy.sample_action(self._curr_state)
         action, next_state, next_reward, is_terminal = self.env.step(
             action, to_visualize=False)
         return action, next_state, next_reward, is_terminal
