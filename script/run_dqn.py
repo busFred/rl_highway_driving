@@ -1,9 +1,10 @@
 import csv
+import multiprocessing as mp
 import os
 import pickle
 import sys
 from argparse import ArgumentParser, Namespace
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -12,6 +13,7 @@ from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import (ChangeLaneConfig, ChangeLaneEnv,
                                       ChangeLaneMetrics)
 from mdps import mdp_utils
+from mdps.mdp_abc import Metrics
 
 matplotlib.use("agg")
 
@@ -30,6 +32,7 @@ def create_argparse() -> ArgumentParser:
         help="path to the directory containing exported metric")
     parser.add_argument("--n_test_episodes", type=int, default=100)
     parser.add_argument("--use_cuda", action="store_true")
+    parser.add_argument("--max_workers", type=int, default=None)
     parser.add_argument("--to_vis", action="store_true")
     return parser
 
@@ -70,32 +73,29 @@ def main(args: Sequence[str]):
         os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
     env_config = get_env_config(argv.env_config_path)
-    env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
-                        vehicles_count=env_config.vehicles_count,
-                        initial_spacing=env_config.initial_spacing,
-                        alpha=env_config.alpha,
-                        beta=env_config.beta,
-                        reward_speed_range=env_config.reward_speed_range)
+    env = ChangeLaneEnv(env_config)
     # create dqn
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
     net = torch.load(argv.model_path)
-    dqn_policy = alg_dqn.DQN(env=env, dqn_net=net, device=device)
+    policy = alg_dqn.DQN(env=env, dqn_net=net, device=device)
     # generate test metrics.
-    metrics_l: List[ChangeLaneMetrics] = list()
-    for curr_sim_eps in range(argv.n_test_episodes):
-        print(str.format("val {}/{}", curr_sim_eps + 1, argv.n_test_episodes))
-        metrics: ChangeLaneMetrics = mdp_utils.simulate(
-            env=env,
-            policy=dqn_policy,
-            max_episode_steps=env_config.max_episode_steps,
-            to_visualize=argv.to_vis)
-        if metrics.screenshot is not None and argv.export_metrics_dir is not None and screenshot_dir_path is not None:
+    metrics_l: Sequence[Metrics] = mdp_utils.simulate_episodes(
+        env=env,
+        policy=policy,
+        max_episode_steps=env_config.max_episode_steps,
+        n_episodes=argv.n_test_episodes,
+        to_visualize=argv.to_vis,
+        max_workers=argv.max_workers)
+    for curr_sim_eps, metrics in enumerate(metrics_l):
+        if isinstance(metrics, ChangeLaneMetrics)\
+            and metrics.screenshot is not None\
+            and argv.export_metrics_dir is not None\
+            and screenshot_dir_path is not None:
             screenshot_path: str = os.path.join(
                 screenshot_dir_path, str.format("eps_{}.png", curr_sim_eps))
             plt.imshow(metrics.screenshot)
             plt.savefig(screenshot_path)
             plt.close()
-        metrics_l.append(metrics)
     # summarize metrics
     summary: Dict[str, float] = env.summarize_metrics_seq(metrics_l)
     print_summary(summary)
@@ -112,4 +112,5 @@ def main(args: Sequence[str]):
 
 if __name__ == "__main__":
     args: Sequence[str] = sys.argv[1:]
+    mp.set_start_method("spawn")
     main(args=args)
