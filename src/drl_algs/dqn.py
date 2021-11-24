@@ -6,6 +6,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 from dataclasses_json import dataclass_json
+from torch._C import device
 from drl_utils import buff_utils
 from drl_utils.buff_utils import RLDataset
 from mdps import mdp_utils
@@ -226,9 +227,13 @@ class DQNTrain(DQN, pl.LightningModule):
                           batch_size=1)
 
     def validation_step(self, batch: Tuple[torch.Tensor], batch_idx):
+        policy: DQN = DQN(env=self.env,
+                          dqn_net=copy.deepcopy(self.dqn),
+                          dtype=self._dtype,
+                          device=self._device)
         metrics: Sequence[Metrics] = mdp_utils.simulate_episodes(
             self.env,
-            policy=self,
+            policy=policy,
             max_episode_steps=self.max_episode_steps,
             n_episodes=self.n_val_episodes,
             to_visualize=False)
