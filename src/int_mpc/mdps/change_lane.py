@@ -9,7 +9,7 @@ from dataclasses_json import dataclass_json, config
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
-from overrides.overrides import overrides
+from overrides import overrides
 
 from mdps.mdp_abc import (Action, DiscreteEnvironment, Metrics, PolicyBase,
                           State)
@@ -98,48 +98,33 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
     # protected instance variables
     _env: HighwayEnv
-    _config: Dict[str, Any]
+    _config_dict: Dict[str, Any]
     _total_steps: int
     _start_state: Union[HighwayEnvState, None]
     _end_state: Union[HighwayEnvState, None]
     _reward_hist: MutableSequence[float]
-    _DEFAULT_ACTION: Optional[HighwayEnvDiscreteAction]
 
     # public methods
-    def __init__(
-            self,
-            lanes_count: int = 4,
-            vehicles_count: int = 50,
-            initial_spacing: float = 1.0,
-            alpha: float = 0.4,
-            beta: float = -1.0,
-            reward_speed_range: Tuple[float, float] = (20, 30),
-            default_action: Optional[HighwayEnvDiscreteAction] = None) -> None:
+    def __init__(self, config: ChangeLaneConfig) -> None:
         """Constructor for ChangeLaneEnv
 
         Args:
-            lanes_count (int, optional): Number of lanes in the environment. Defaults to 4.
-            vehicles_count (int, optional): The total number of vehicles in the environment. Defaults to 50.
-            initial_spacing (float, optional): The initial spacing between vehicles. Defaults to 1.
-            alpha (float, optional): The magnitude to encourge fast speed. Defaults to 0.4.
-            beta (float, optional): The reward signal when having collision with other vehicles. Should be negative real number. Defaults to -1.
-            reward_speed_range (Tuple[float, float], optional): The range of speed that is encouraged. Defaults to (20, 30).
-            default_action (Optional[HighwayEnvDiscreteAction]): The default action to take when the action passed in is unavailable.
+            config (ChangeLaneConfig): The configuration for the enviornment.
         """
         super().__init__()
-        self._config = ChangeLaneEnv._make_config(
-            lanes_count=lanes_count,
-            vehicles_count=vehicles_count,
-            initial_spacing=initial_spacing,
-            alpha=alpha,
-            beta=beta,
-            reward_speed_range=reward_speed_range)
-        self._env = highway_mdp.make_highway_env(config=self._config)
+        self.config = config
+        self._config_dict = ChangeLaneEnv._make_config_dict(
+            lanes_count=config.lanes_count,
+            vehicles_count=config.vehicles_count,
+            initial_spacing=config.initial_spacing,
+            alpha=config.alpha,
+            beta=config.beta,
+            reward_speed_range=config.reward_speed_range)
+        self._env = highway_mdp.make_highway_env(config=self._config_dict)
         self._total_steps = 0
         self._start_state = None
         self._end_state = None
         self._reward_hist = list()
-        self._DEFAULT_ACTION = default_action
 
     @overrides
     def step(
@@ -158,8 +143,8 @@ class ChangeLaneEnv(DiscreteEnvironment):
             ValueError: action is invalid.
 
         Returns:
-            mdp_state (State): The next state after taking the passed in action.
             action (HighwayEnvDiscreteAction): The actual taken being taken by the environment.
+            mdp_state (State): The next state after taking the passed in action.
             reward (float): The reward associated with the state.
             is_terminal (bool): Whether or not the state is terminal.
         """
@@ -168,9 +153,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
         if action not in HighwayEnvDiscreteAction:
             raise ValueError
         # if default action is present and the current action is unavailable
-        if (self._DEFAULT_ACTION is not None) and \
+        if (self.config.default_action is not None) and \
             (action not in self._env.get_available_actions()):
-            action = self._DEFAULT_ACTION
+            action = self.config.default_action
         _, env_reward, is_terminal, info = self._env.step(action=action)
         observation: np.ndarray = self._make_observation()
         # info = {'speed': 29.1455588268693, 'crashed': False, 'action': 3, 'cost': 0.0}
@@ -263,27 +248,34 @@ class ChangeLaneEnv(DiscreteEnvironment):
                     steps_to_crash.append(metric.n_steps_to_crash)
             else:
                 raise ValueError
-        avg_total_reward: float = np.mean(total_rewards)
-        avg_distance: float = np.mean(distance_travel)
-        avg_steps_to_crash: float = np.mean(steps_to_crash)
-        std_total_reward: float = np.std(total_rewards)
-        std_distance: float = np.std(distance_travel)
-        std_steps_to_crash: float = np.std(steps_to_crash)
-        n_crashes: int = len(steps_to_crash)
+        avg_total_reward: float = np.mean(total_rewards, dtype=np.float32)
+        avg_distance: float = np.mean(distance_travel, dtype=np.float32)
+        std_total_reward: float = np.std(total_rewards, dtype=np.float32)
+        std_distance: float = np.std(distance_travel, dtype=np.float32)
+        n_crashes: float = float(len(steps_to_crash))
+        avg_steps_to_crash: float = 0.0
+        std_steps_to_crash: float = 0.0
+        if n_crashes > 0:
+            avg_steps_to_crash = np.mean(steps_to_crash, dtype=np.float32)
+            std_steps_to_crash = np.std(steps_to_crash, dtype=np.float32)
         metrics_dict: Dict[str, float] = {
+            "n_crashes": n_crashes,
             "avg_total_reward": avg_total_reward,
             "avg_distance": avg_distance,
             "avg_steps_to_crash": avg_steps_to_crash,
             "std_total_reward": std_total_reward,
             "std_distance": std_distance,
-            "std_steps_to_crash": std_steps_to_crash,
-            "n_crashes": n_crashes
+            "std_steps_to_crash": std_steps_to_crash
         }
         return metrics_dict
 
     @overrides
     def get_random_policy(self) -> ChangeLaneRandomPolicy:
         return ChangeLaneEnv.ChangeLaneRandomPolicy()
+
+    @overrides
+    def new_env_like(self) -> "ChangeLaneEnv":
+        return ChangeLaneEnv(self.config)
 
     # protected methods
     def _make_observation(self) -> np.ndarray:
@@ -383,9 +375,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
     # protected static methods
     @staticmethod
-    def _make_config(lanes_count: int, vehicles_count: int,
-                     initial_spacing: float, alpha: float, beta: float,
-                     reward_speed_range: Tuple[float, float]):
+    def _make_config_dict(lanes_count: int, vehicles_count: int,
+                          initial_spacing: float, alpha: float, beta: float,
+                          reward_speed_range: Tuple[float, float]):
         config: Dict[str, Any] = deepcopy(ChangeLaneEnv.DEFAULT_CONFIG)
         config["lanes_count"] = lanes_count
         config["vehicles_count"] = vehicles_count
