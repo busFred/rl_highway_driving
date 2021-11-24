@@ -1,3 +1,4 @@
+import multiprocessing as mp
 import os
 import sys
 from argparse import ArgumentParser, Namespace
@@ -17,7 +18,8 @@ def create_argparse() -> ArgumentParser:
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--export_path", type=str, required=True)
     parser.add_argument("--n_val_episodes", type=int, default=20)
-    parser.add_argument("--to_vis", action="store_true")
+    parser.add_argument("--max_workers", type=int, default=None)
+    parser.add_argument("--checkpoint_path", type=str, default=None)
     return parser
 
 
@@ -55,14 +57,10 @@ def main(args: Sequence[str]):
     argv: Namespace = parse_args(args)
     # create export path
     os.makedirs(argv.export_path, exist_ok=True)
+    os.makedirs(argv.checkpoint_path, exist_ok=True)
     # configure environment
     env_config: ChangeLaneConfig = get_env_config(argv.env_config_path)
-    env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
-                        vehicles_count=env_config.vehicles_count,
-                        initial_spacing=env_config.initial_spacing,
-                        alpha=env_config.alpha,
-                        beta=env_config.beta,
-                        reward_speed_range=env_config.reward_speed_range)
+    env = ChangeLaneEnv(env_config)
     # get dqn
     dqn_config: alg_dqn.DQNConfig = get_dqn_config(argv.dqn_config_path)
     net = LinearDQN()
@@ -71,7 +69,8 @@ def main(args: Sequence[str]):
                            dqn_config=dqn_config,
                            max_episode_steps=env_config.max_episode_steps,
                            n_val_episodes=argv.n_val_episodes,
-                           optimizer=torch.optim.Adam(net.parameters()))
+                           optimizer=torch.optim.Adam(net.parameters()),
+                           max_workers=argv.max_workers)
     # configure experiment name
     exp_name: str = get_experiment_name(argv.env_config_path,
                                         argv.dqn_config_path)
@@ -86,8 +85,8 @@ def main(args: Sequence[str]):
                          logger=loggers,
                          gpus=-1,
                          auto_select_gpus=True,
+                         log_every_n_steps=1,
                          check_val_every_n_epoch=5)
-
     trainer.fit(dqn)
     # export model
     model_path: str = os.path.join(argv.export_path, exp_name + ".pt")
@@ -96,4 +95,5 @@ def main(args: Sequence[str]):
 
 if __name__ == "__main__":
     args: Sequence[str] = sys.argv[1:]
+    mp.set_start_method("spawn")
     main(args=args)
