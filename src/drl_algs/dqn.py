@@ -162,6 +162,7 @@ class DQNTrain(DQN, pl.LightningModule):
             buff=self.buff,
             env=self.env,
             policy=self.env.get_random_policy(),
+            max_episode_steps=self.max_episode_steps,
             target_size=self.dqn_config.batch_size)
         self.curr_state = self.env.reset()
         self.is_terminal = False
