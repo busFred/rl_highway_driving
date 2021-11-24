@@ -1,4 +1,6 @@
-from typing import List, Tuple
+import copy
+import multiprocessing as mp
+from typing import List, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -125,7 +127,8 @@ class RLDataset(ReplayBuffer, IterableDataset):
 
 
 def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
-                           policy: PolicyBase, target_size: int):
+                           policy: PolicyBase, max_episode_steps: int,
+                           target_size: int):
     """Create and initialize the replay buffer with random policy.
 
     Args:
@@ -134,17 +137,36 @@ def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
         policy (PolicyBase): The policy used to populate the buffer.
         target_size (int): The target replay buffer size.
     """
-    state: State = env.reset()
+    with mp.Pool() as pool:
+        for curr_buff in pool.imap_unordered(
+                _simulate,
+                _env_generator(buff, env, policy, max_episode_steps,
+                               target_size)):
+            buff.extend(curr_buff)
+            if len(buff) >= min(target_size, buff._max_size):
+                break
+
+
+def _env_generator(buff: ReplayBuffer, env: Environment, policy: PolicyBase,
+                   max_episode_steps: int, target_size: int):
     while len(buff) < min(target_size, buff._max_size):
+        yield (env, policy, max_episode_steps, buff._max_size)
+
+
+def _simulate(arg: Tuple[Environment, PolicyBase, int, int]):
+    env, policy, max_episode_steps, max_size = arg
+    _buff = ReplayBuffer(max_size)
+    state: State = env.reset()
+    for _ in range(max_episode_steps):
         action: Action = policy.sample_action(state)
         action, next_state, next_reward, is_terminal = env.step(
             action=action, to_visualize=False)
-        buff.add_experience(state=state,
-                            action=action,
-                            next_state=next_state,
-                            next_reward=next_reward,
-                            is_terminal=is_terminal)
-        if is_terminal == False:
-            state = next_state
-        else:
-            state = env.reset()
+        _buff.add_experience(state=state,
+                             action=action,
+                             next_state=next_state,
+                             next_reward=next_reward,
+                             is_terminal=is_terminal)
+        state = next_state
+        if is_terminal:
+            break
+    return _buff
