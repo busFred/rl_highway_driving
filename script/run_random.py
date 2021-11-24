@@ -58,16 +58,10 @@ def main(args: Sequence[str]):
         os.makedirs(screenshot_dir_path, exist_ok=True)
     # configure environment
     env_config = get_env_config(argv.env_config_path)
-    env = ChangeLaneEnv(lanes_count=env_config.lanes_count,
-                        vehicles_count=env_config.vehicles_count,
-                        initial_spacing=env_config.initial_spacing,
-                        alpha=env_config.alpha,
-                        beta=env_config.beta,
-                        reward_speed_range=env_config.reward_speed_range)
+    env = ChangeLaneEnv(env_config)
     # create dqn
     policy = env.get_random_policy()
     # generate test metrics.
-    # metrics_l: List[ChangeLaneMetrics] = list()
     metrics_l: Sequence[Metrics] = mdp_utils.simulate_episodes(
         env=env,
         policy=policy,
