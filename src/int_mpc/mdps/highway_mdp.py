@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 import gym
 import numpy as np
 from highway_env.envs.highway_env import HighwayEnv
+from overrides import overrides
+
 from mdps.mdp_abc import DiscreteAction, State
-from overrides.overrides import overrides
 
 
 class HighwayEnvDiscreteAction(DiscreteAction):
@@ -16,7 +17,10 @@ class HighwayEnvDiscreteAction(DiscreteAction):
     SLOWER = 4
 
     @staticmethod
-    def _str_to_action(s: str) -> "HighwayEnvDiscreteAction":
+    def _str_to_action(
+            s: Optional[str]) -> Union["HighwayEnvDiscreteAction", None]:
+        if s is None:
+            return s
         try:
             return HighwayEnvDiscreteAction(int(s))
         except ValueError:
