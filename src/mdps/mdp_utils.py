@@ -1,5 +1,6 @@
+import copy
 import multiprocessing as mp
-from typing import Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 import torch
@@ -49,7 +50,8 @@ def simulate_episodes(env: Environment,
                       policy: PolicyBase,
                       max_episode_steps: int,
                       n_episodes: int,
-                      to_visualize: bool = True) -> Sequence[Metrics]:
+                      to_visualize: bool = True,
+                      max_workers: Optional[int] = None) -> Sequence[Metrics]:
     """Simulate the MDP with the given policy.
 
     Args:
@@ -62,8 +64,9 @@ def simulate_episodes(env: Environment,
     Returns:
         metrics (Sequence[Metrics]): The metrics of the all the episodes.
     """
-    with mp.Pool() as pool:
+    with mp.Pool(processes=max_workers) as pool:
         metrics: Sequence[Metrics] = pool.starmap(
-            simulate, [(env, policy, max_episode_steps, to_visualize)
+            simulate, [(env.new_env_like(), copy.deepcopy(policy),
+                        max_episode_steps, to_visualize)
                        for _ in range(n_episodes)])
     return metrics
