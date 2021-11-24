@@ -5,7 +5,7 @@ from typing import (Any, Dict, List, MutableSequence, Optional, Sequence,
                     Tuple, Union)
 
 import numpy as np
-from dataclasses_json import dataclass_json
+from dataclasses_json import dataclass_json, config
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
@@ -29,6 +29,11 @@ class ChangeLaneConfig:
     beta: float = field(default=-1.0)
     reward_speed_range: Tuple[float, float] = field(
         default_factory=lambda: (20.0, 30.0))
+    default_action: Optional[HighwayEnvDiscreteAction] = field(
+        default=None,
+        metadata=config(
+            encoder=lambda x: x.name,
+            decoder=lambda x: HighwayEnvDiscreteAction._str_to_action(x)))
 
 
 @dataclass

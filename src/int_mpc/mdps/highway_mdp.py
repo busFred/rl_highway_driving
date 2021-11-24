@@ -15,6 +15,13 @@ class HighwayEnvDiscreteAction(DiscreteAction):
     FASTER = 3
     SLOWER = 4
 
+    @staticmethod
+    def _str_to_action(s: str) -> "HighwayEnvDiscreteAction":
+        try:
+            return HighwayEnvDiscreteAction(int(s))
+        except ValueError:
+            return HighwayEnvDiscreteAction[s.upper()]
+
 
 @dataclass
 class HighwayEnvState(State):
