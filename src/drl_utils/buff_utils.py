@@ -105,25 +105,31 @@ class ReplayBuffer:
         return len(self._replay_buff)
 
 
-class RLDataset(ReplayBuffer, IterableDataset):
+class RLDataset(IterableDataset):
 
+    buffer: ReplayBuffer
+    max_episode_steps: int
     batch_size: int
     _dtype: torch.dtype
     _device: torch.device
 
     def __init__(self,
-                 max_size: int,
+                 buffer: ReplayBuffer,
+                 max_episode_steps: int,
                  batch_size: int,
                  dtype: torch.dtype = torch.float,
                  device: torch.device = torch.device("cpu")):
-        super().__init__(max_size=max_size)
+        self.buffer = buffer
+        self.max_episode_steps = max_episode_steps
         self.batch_size = batch_size
         self._dtype = dtype
         self._device = device
 
     def __iter__(self):
-        return zip(*(self.sample_experiences(self.batch_size, self._dtype,
-                                             self._device)))
+        for _ in range(self.max_episode_steps):
+            for exp in zip(*(self.buffer.sample_experiences(
+                    self.batch_size, self._dtype, self._device))):
+                yield exp
 
 
 def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
