@@ -150,7 +150,7 @@ def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
 def _env_generator(buff: ReplayBuffer, env: Environment, policy: PolicyBase,
                    max_episode_steps: int, target_size: int):
     while len(buff) < min(target_size, buff._max_size):
-        yield (env, policy, max_episode_steps, buff._max_size)
+        yield (env.new_env_like(), policy, max_episode_steps, buff._max_size)
 
 
 def _simulate(arg: Tuple[Environment, PolicyBase, int, int]):
