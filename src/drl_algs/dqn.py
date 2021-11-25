@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 import torch
 from dataclasses_json import dataclass_json
 from drl_utils import buff_utils
-from drl_utils.buff_utils import RLDataset
+from drl_utils.buff_utils import ReplayBuffer, RLDataset
 from mdps import mdp_utils
 from mdps.mdp_abc import (Action, DiscreteAction, DiscreteEnvironment, Metrics,
                           PolicyBase, State)
@@ -104,7 +104,7 @@ class DQNTrain(DQN, pl.LightningModule):
 
     # initialized in on_fit_start
     _curr_epsilon: float
-    _buff: RLDataset
+    _buff: ReplayBuffer
     _curr_state: State
     _curr_step: int
     _is_terminal: bool
@@ -151,15 +151,17 @@ class DQNTrain(DQN, pl.LightningModule):
     # initialize varaibles for dqn
     # train
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self._buff, batch_size=self.max_episode_steps)
+        dataset = RLDataset(self._buff,
+                            max_episode_steps=self.max_episode_steps,
+                            batch_size=self.dqn_config.batch_size,
+                            dtype=self.dtype,
+                            device=self.device)
+        return DataLoader(dataset, batch_size=self.dqn_config.batch_size)
 
     def on_fit_start(self) -> None:
         self._curr_epsilon = self.dqn_config.epsilon
         # initialize replay buffer with random policy
-        self._buff = RLDataset(max_size=self.dqn_config.max_buff_size,
-                               batch_size=self.dqn_config.batch_size,
-                               dtype=self._dtype,
-                               device=self._device)
+        self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size, )
         buff_utils.populate_replay_buffer(
             buff=self._buff,
             env=self.env,
@@ -183,6 +185,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor,
                            torch.Tensor, torch.Tensor]
     ) -> Union[torch.Tensor, None]:
+        # self.print(batch[0].shape)
         if self._curr_step >= self.max_episode_steps or self._is_terminal:
             return None
         states, actions, next_states, next_rewards, is_terminals = batch
