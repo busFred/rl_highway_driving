@@ -86,7 +86,8 @@ def main(args: Sequence[str]):
                          gpus=-1,
                          auto_select_gpus=True,
                          log_every_n_steps=1,
-                         check_val_every_n_epoch=5)
+                         check_val_every_n_epoch=5,
+                         default_root_dir=argv.checkpoint_path)
     trainer.fit(dqn)
     # export model
     model_path: str = os.path.join(argv.export_path, exp_name + ".pt")
