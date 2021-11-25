@@ -1,12 +1,11 @@
 import copy
 from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence, Tuple, Type, Union
+from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 from dataclasses_json import dataclass_json
-from torch._C import device
 from drl_utils import buff_utils
 from drl_utils.buff_utils import RLDataset
 from mdps import mdp_utils
