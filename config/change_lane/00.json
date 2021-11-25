@@ -8,5 +8,6 @@
     "reward_speed_range": [
         20.0,
         30.0
-    ]
+    ],
+    "default_action": "slower"
 }
