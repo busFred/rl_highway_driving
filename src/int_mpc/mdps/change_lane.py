@@ -126,6 +126,9 @@ class ChangeLaneEnv(DiscreteEnvironment):
         self._end_state = None
         self._reward_hist = list()
 
+    def __del__(self):
+        self._env.close()
+
     @overrides
     def step(
         self,
