@@ -5,7 +5,7 @@ from typing import (Any, Dict, List, MutableSequence, Optional, Sequence,
                     Tuple, Union)
 
 import numpy as np
-from dataclasses_json import dataclass_json, config
+from dataclasses_json import config, dataclass_json
 from highway_env.envs.highway_env import HighwayEnv
 from highway_env.road.road import LaneIndex
 from highway_env.vehicle.kinematics import Vehicle
@@ -218,8 +218,8 @@ class ChangeLaneEnv(DiscreteEnvironment):
         screenshot: Union[np.ndarray, None] = None
         if terminated_crash:
             screenshot = self._env.render(mode="rgb_array")
-        if self._env.viewer is not None:
-            self._env.viewer.close()
+            if self._env.viewer is not None:
+                self._env.viewer.close()
         metrics = ChangeLaneMetrics(total_reward=total_reward,
                                     distance_travel=distance_travel,
                                     terminated_crash=terminated_crash,
