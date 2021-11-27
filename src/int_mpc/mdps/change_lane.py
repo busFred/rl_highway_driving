@@ -212,8 +212,11 @@ class ChangeLaneEnv(DiscreteEnvironment):
         distance_travel: float = end_loc - start_loc
         terminated_crash: bool = self._end_state.is_crashed
         n_steps_to_crash: int = self._total_steps if terminated_crash else -1
-        screenshot: Union[np.ndarray, None] = self._env.render(
-            mode="rgb_array") if terminated_crash else None
+        screenshot: Union[np.ndarray, None] = None
+        if terminated_crash:
+            screenshot = self._env.render(mode="rgb_array")
+        if self._env.viewer is not None:
+            self._env.viewer.close()
         metrics = ChangeLaneMetrics(total_reward=total_reward,
                                     distance_travel=distance_travel,
                                     terminated_crash=terminated_crash,
