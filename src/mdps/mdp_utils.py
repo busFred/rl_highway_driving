@@ -68,13 +68,12 @@ def simulate_episodes(env: Environment,
         metrics (Sequence[Metrics]): The metrics of the all the episodes.
     """
     with mp.get_context("spawn").Pool(processes=max_workers) as pool:
-        metrics: Sequence[Metrics] = list()
         result = pool.starmap_async(
             simulate, [(env.new_env_like(), copy.deepcopy(policy),
                         max_episode_steps, to_visualize)
                        for _ in range(n_episodes)])
         try:
-            metrics = result.get(timeout=timeout)
+            metrics: Sequence[Metrics] = result.get(timeout=timeout)
+            return metrics
         except TimeoutError as te:
             raise te
-    return metrics
