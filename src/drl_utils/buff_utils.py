@@ -143,7 +143,7 @@ def populate_replay_buffer(buff: ReplayBuffer, env: Environment,
         policy (PolicyBase): The policy used to populate the buffer.
         target_size (int): The target replay buffer size.
     """
-    with mp.Pool() as pool:
+    with mp.get_context("spawn").Pool() as pool:
         for curr_buff in pool.imap_unordered(
                 _simulate,
                 _env_generator(buff, env, policy, max_episode_steps,
