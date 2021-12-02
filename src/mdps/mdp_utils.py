@@ -72,8 +72,8 @@ def simulate_episodes(env: Environment,
             simulate, [(env.new_env_like(), copy.deepcopy(policy),
                         max_episode_steps, to_visualize)
                        for _ in range(n_episodes)])
-        try:
-            metrics: Sequence[Metrics] = result.get(timeout=timeout)
-            return metrics
-        except TimeoutError as te:
-            raise te
+        result.wait(timeout=timeout)
+        if result.ready():
+            return result.get()
+        else:
+            return list()
