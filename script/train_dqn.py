@@ -18,6 +18,7 @@ def create_argparse() -> ArgumentParser:
     parser.add_argument("--env_config_path", type=str, required=True)
     parser.add_argument("--dqn_config_path", type=str, required=True)
     parser.add_argument("--n_val_episodes", type=int, default=20)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--max_workers", type=int, default=None)
     parser.add_argument("--export_path", type=str, default=None)
     parser.add_argument("--metrics_path", type=str, default=None)
