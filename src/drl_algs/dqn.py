@@ -210,6 +210,8 @@ class DQNTrain(DQN, pl.LightningModule):
         self._curr_state = next_state
         self._curr_step = self._curr_step + 1
         self._is_terminal = is_terminal
+        # log before return the error
+        self.log_dict({"training_loss": error}, prog_bar=True)
         return error
 
     def on_train_epoch_end(self) -> None:
