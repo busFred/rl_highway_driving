@@ -8,6 +8,8 @@
         cd ~/path/to/csce_790_final_proj
         pip install -e .
 
+    Note that two packages have dependency conflict, which will cause runtime error. Use `pip` to downgrade the package would resolve the problem.
+
 ## Usage
 
 * Test Random
