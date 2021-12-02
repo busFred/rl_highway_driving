@@ -7,6 +7,20 @@
         
         cd ~/path/to/csce_790_final_proj
         pip install -e .
+
+## Usage
+
+* Test Random
+
+        python 
+
+* Train
+    
+        python 
+
+* Test Trained DQN
+
+        python 
     
 ## Folder Structure
 
@@ -24,13 +38,31 @@
         
         The package that contains the drl algorithms.
 
-    * `drl_utils`
+        * `dqn`
+
+            The deep q learning algorithm.
+
+    * `drl_utils/`
         
-        The package that contains the utilities for drl.
+        * `buff_utils`
+            
+            Defines replay buffer.
 
     * `int_mpc/`
         
         The package that defines the int_mpc Markov Decision Process.
+
+        * `mdps`
+            
+            Defines the State for highway env 
+
+        * `change_lane`
+
+            Defines the change lane environment.
+
+        * `nnet`
+        
+            `dqn`: The definition of the network itself.
 
     * `mdps/`
 
@@ -42,12 +74,4 @@
     
         * `mdp_utils`
     
-            Contains helper functions specifically for mdp.
-    
-        * `policy_abc`
-            
-            WORK IN PROGRESS.
-    
-            Contains classes that define the policy. Some RL algorithm requires independent policy ML models; this module is intended for this purpose.
-    
-            However, as this is more likely to be used with PyTorch, it might be moved to `int_mpc.nets` module. NOT DETERMINED YET.
+            Contains helper functions specifically for mdp, such as used the trained policy to run the simulation.
