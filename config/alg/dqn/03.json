@@ -1,0 +1,10 @@
+{
+    "epsilon": 0.5,
+    "epsilon_decay": 0.99,
+    "epsilon_update_episodes": 10,
+    "discount": 0.9,
+    "n_episodes": 5050,
+    "max_buff_size": 5000,
+    "batch_size": 3000,
+    "targ_update_episodes": 100
+}
