@@ -73,6 +73,7 @@ def main(args: Sequence[str]):
     # get dqn
     dqn_config: alg_dqn.DQNConfig = get_dqn_config(argv.dqn_config_path)
     net = LinearDQN()
+    net.reset_parameters()
     dqn = alg_dqn.DQNTrain(env=env,
                            dqn_net=net,
                            dqn_config=dqn_config,
