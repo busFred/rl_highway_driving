@@ -76,7 +76,7 @@ def main(args: Sequence[str]):
     env = ChangeLaneEnv(env_config)
     # create dqn
     device = torch.device("cuda") if argv.use_cuda else torch.device("cpu")
-    net = torch.load(argv.model_path)
+    net = torch.load(argv.dqn_path)
     policy = alg_dqn.DQN(env=env, dqn_net=net, device=device)
     # generate test metrics.
     metrics_l: Sequence[Metrics] = mdp_utils.simulate_episodes(
