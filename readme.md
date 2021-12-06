@@ -1,7 +1,9 @@
 # Simplified IntMPC
 
 ## Install
-* Develop Mode
+
+1. The project is developed with Python 3.8.11 (64-bit). But all python version >= 3.8 should work.
+1. Develop Mode
 
     Install the package in development mode
         
