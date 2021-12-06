@@ -16,7 +16,7 @@ All action assumed python virtual environment is properly installed, and the ter
 
 * Quick Test with DQN Policy
 
-    With IPython Kernel, the environment and the load a trained DQN policy can be run cell by cell. The script can be found at `notebook/run_dqn.py`.
+    With IPython Kernel, the environment and the load a trained DQN policy can be run cell by cell. The script can be found at `notebook/run_change_lane.py`.
 
 * Test Random
 
