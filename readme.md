@@ -12,17 +12,30 @@
 
 ## Usage
 
+All action assumed python virtual environment is properly installed, and the terminal is changed to the location of the script.
+
+* Quick Test with DQN Policy
+
+    With IPython Kernel, the environment and the load a trained DQN policy can be run cell by cell. The script can be found at `notebook/run_dqn.py`.
+
 * Test Random
 
-        python 
+    Generate statistics using random policy. The script is located in `script` directiory.
+
+        python run_random.py --env_config_path ../config/change_lane/01.json --export_metrics_dir ../metrics/random --n_test_episodes 20 --to_vis
 
 * Train
     
-        python 
+    Train DQN metwork. The script is located in `script` directiory.
+    
+        python train_dqn.py --env_config_path ../config/change_lane/01.json --dqn_config_path PATH/TO/DQN_CONFIG --export_path ../model/ --lr 1e-5 --n_val_episodes 20 --max_workers 7 --checkpoint_path ../checkpoint --metrics_path ../metrics/train/
+
 
 * Test Trained DQN
+    
+    Generate statistics using DQN policy. The script is located in `script` directiory.
 
-        python 
+        python run_dqn.py --env_config_path ../config/change_lane/01.json --dqn_path ../model/env_01_dqn_02.pt --export_metrics_dir ../metrics/dqn/env_01_dqn_02 --n_test_episodes 20 --use_cuda --max_workers 7 --to_vis
     
 ## Folder Structure
 
