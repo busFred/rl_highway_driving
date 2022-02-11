@@ -1,0 +1,23 @@
+{
+    "out_features": [
+        100,
+        100,
+        100
+    ],
+    "use_biases": [
+        true,
+        true,
+        true
+    ],
+    "use_batch_norms": [
+        false,
+        false,
+        false
+    ],
+    "use_activations": [
+        true,
+        true,
+        true
+    ],
+    "activation_type": "relu"
+}
