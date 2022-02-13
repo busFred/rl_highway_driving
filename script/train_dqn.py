@@ -2,7 +2,7 @@
 import os
 import sys
 from argparse import ArgumentParser, Namespace
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pl_loggers
@@ -30,6 +30,7 @@ class TrainDQNConfigs:
     experiment_path: str  # experiments_root_path/experiment_name/version_{version}
     checkpoint_path: str  # experiment_path/checkpoints
     model_export_path_fn: str  # experiment_path/{experiment_name}.pt
+    ckpt_load_path_fn: Optional[str]
     version: int
     # accelerate computing
     max_workers: Union[int, None]
@@ -48,6 +49,7 @@ class TrainDQNConfigs:
         self.experiments_root_path = argv.experiments_root_path
         self._configure_loggers()
         self._configure_export_paths()
+        self.ckpt_load_path_fn = argv.ckpt_load_path_fn
         self.max_workers = argv.max_workers
         self.use_gpu = argv.use_gpu
 
@@ -62,6 +64,7 @@ class TrainDQNConfigs:
         parser.add_argument("--experiments_root_path",
                             type=str,
                             default="experiments")
+        parser.add_argument("--ckpt_load_path_fn", type=str, default=None)
         parser.add_argument("--max_workers", type=int, default=None)
         parser.add_argument("--use_gpu", action="store_true")
         argv = parser.parse_args(args)
@@ -131,7 +134,7 @@ def main(args: Sequence[str]):
                          auto_select_gpus=configs.use_gpu,
                          check_val_every_n_epoch=5,
                          default_root_dir=configs.checkpoint_path)
-    trainer.fit(dqn)
+    trainer.fit(dqn, ckpt_path=configs.ckpt_load_path_fn)
     # save final dqn
     torch.save(dqn.dqn, configs.model_export_path_fn)
 
