@@ -1,9 +1,9 @@
 import copy
-import multiprocessing as mp
 from typing import Optional, Sequence
 
 import numpy as np
 import torch
+from torch import multiprocessing as mp
 
 from .mdp_abc import Action, Environment, Metrics, PolicyBase, State
 
@@ -69,9 +69,13 @@ def simulate_episodes(env: Environment,
     """
     with mp.get_context("spawn").Pool(processes=max_workers) as pool:
         result = pool.starmap_async(
-            simulate, [(env.new_env_like(), copy.deepcopy(policy),
-                        max_episode_steps, to_visualize)
-                       for _ in range(n_episodes)])
+            simulate,
+            [(env.new_env_like(), policy, max_episode_steps, to_visualize)
+             for _ in range(n_episodes)])
+        # result = pool.starmap_async(
+        #     simulate, [(env.new_env_like(), copy.deepcopy(policy),
+        #                 max_episode_steps, to_visualize)
+        #                for _ in range(n_episodes)])
         result.wait(timeout=timeout)
         if result.ready():
             return result.get()

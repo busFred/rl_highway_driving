@@ -1,5 +1,4 @@
 import csv
-import multiprocessing as mp
 import os
 import pickle
 import sys
@@ -14,6 +13,7 @@ from int_mpc.mdps.change_lane import (ChangeLaneConfig, ChangeLaneEnv,
                                       ChangeLaneMetrics)
 from mdps import mdp_utils
 from mdps.mdp_abc import Metrics
+from torch import multiprocessing as mp
 
 matplotlib.use("agg")
 

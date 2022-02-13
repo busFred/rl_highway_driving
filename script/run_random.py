@@ -1,10 +1,9 @@
 import csv
-import enum
 import os
 import pickle
 import sys
 from argparse import ArgumentParser, Namespace
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import matplotlib
 import matplotlib.pyplot as plt
