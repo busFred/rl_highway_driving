@@ -103,6 +103,8 @@ class DQNTrain(DQN, pl.LightningModule):
     _targ_dqn: nn.Module
     max_workers: Optional[int]
 
+    is_from_ckpt: bool
+
     # initialized in on_fit_start
     _curr_epsilon: float
     _buff: ReplayBuffer
@@ -143,6 +145,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self.max_episode_steps = max_episode_steps
         self.n_val_episodes = n_val_episodes
         self.max_workers = max_workers
+        self.is_from_ckpt = False
 
     # pl method override
 
@@ -151,23 +154,29 @@ class DQNTrain(DQN, pl.LightningModule):
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         super().on_load_checkpoint(checkpoint)
+        self.is_from_ckpt = True
         # initialize current epsilon
+        epoch: int = checkpoint["epoch"]
         self._curr_epsilon = self.dqn_config.epsilon * self.dqn_config.epsilon_decay**math.floor(
-            self.current_epoch / self.dqn_config.epsilon_update_episodes)
-        # initialize target network
-        self._update_targ()
-        # initialize replay buffer with random policy
+            epoch / self.dqn_config.epsilon_update_episodes)
+        # initialize replay buffer with both dqn policy and randomn policy
         self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size)
-        policy = DQN(env=self.env,
-                     dqn_net=self.dqn,
-                     dtype=self.dtype,
-                     device=torch.device(self.device))
-        buff_utils.populate_replay_buffer(
-            buff=self._buff,
-            env=self.env,
-            policy=policy,
-            max_episode_steps=self.max_episode_steps,
-            target_size=self.dqn_config.batch_size)
+        targ_dqn_policy = DQN(env=self.env,
+                              dqn_net=self.targ_dqn,
+                              dtype=self.dtype,
+                              device=torch.device(self.device))
+        rand_policy = self.env.get_random_policy()
+        policies: Sequence[Tuple[PolicyBase, int]] = [
+            (targ_dqn_policy, self.dqn_config.batch_size // 2),
+            (rand_policy, self.dqn_config.batch_size // 2)
+        ]
+        for policy, target_size in policies:
+            buff_utils.populate_replay_buffer(
+                buff=self._buff,
+                env=self.env,
+                policy=policy,
+                max_episode_steps=self.max_episode_steps,
+                target_size=target_size)
         self._curr_state = self.env.reset()
         self._curr_step = 0
         self._is_terminal = False
@@ -183,8 +192,9 @@ class DQNTrain(DQN, pl.LightningModule):
         return DataLoader(dataset, batch_size=self.dqn_config.batch_size)
 
     def on_fit_start(self) -> None:
+        if self.is_from_ckpt:
+            return super().on_fit_start()
         self._curr_epsilon = self.dqn_config.epsilon
-        # initialize replay buffer with random policy
         self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size)
         buff_utils.populate_replay_buffer(
             buff=self._buff,
