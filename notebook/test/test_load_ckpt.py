@@ -118,29 +118,37 @@ args = [
     "--dqn_config_path", "../../config/rl_alg/dqn/04.json",
     "--dqn_net_config_path", "../../config/change_lane_d/linear_dqn/00.json",
     "--n_val_episodes", "100", "--lr", "1e-5", "--experiment_name",
-    "env_01_dqn_04_lnet_00_lr_1e5", "--experiments_root_path",
+    "env_01_dqn_04_lnet_00_lr_1e5_load", "--experiments_root_path",
     "../../experiments"
 ]
-# load configurations from command line arguments
-configs = TrainDQNConfigs(args)
-# create environment
-env = ChangeLaneEnv(configs.env_config)
-# create dqn_net
-dqn_net = LinearDQN(configs.dqn_net_config)
-dqn_net.init(env)
-#  configure optimizer
-optim = torch.optim.Adam(dqn_net.parameters(), lr=configs.lr)
-# create dqn algorithm with dqn_net
 ckpt_path_fn = "../../experiments/env_01_dqn_04_lnet_00_lr_1e5/version_0/checkpoints/env_01_dqn_04_lnet_00_lr_1e5_env_01_dqn_04_lnet_00_lr_1e5/0_0/checkpoints/epoch=2509-step=75299.ckpt"
-dqn = alg_dqn.DQNTrain.load_from_checkpoint(
-    ckpt_path_fn,
-    env=env,
-    dqn_net=dqn_net,
-    dqn_config=configs.dqn_config,
-    max_episode_steps=configs.env_config.max_episode_steps,
-    n_val_episodes=configs.n_val_episodes,
-    optimizer=optim,
-    max_workers=configs.max_workers)
+
+if __name__ == "__main__":
+    # load configurations from command line arguments
+    configs = TrainDQNConfigs(args)
+    # create environment
+    env = ChangeLaneEnv(configs.env_config)
+    # create dqn_net
+    dqn_net = LinearDQN(configs.dqn_net_config)
+    dqn_net.init(env)
+    #  configure optimizer
+    optim = torch.optim.Adam(dqn_net.parameters(), lr=configs.lr)
+    # create dqn algorithm with dqn_net
+    dqn = alg_dqn.DQNTrain(
+        env=env,
+        dqn_net=dqn_net,
+        dqn_config=configs.dqn_config,
+        max_episode_steps=configs.env_config.max_episode_steps,
+        n_val_episodes=configs.n_val_episodes,
+        optimizer=optim,
+        max_workers=configs.max_workers)
+    trainer = pl.Trainer(max_epochs=configs.dqn_config.n_episodes,
+                         logger=configs.loggers,
+                         auto_select_gpus=configs.use_gpu,
+                         check_val_every_n_epoch=5,
+                         default_root_dir=configs.checkpoint_path)
+    trainer.fit(dqn, ckpt_path=ckpt_path_fn)
 
 # %%
 
+# %%
