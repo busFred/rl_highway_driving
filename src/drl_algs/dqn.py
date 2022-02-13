@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass, field
-from typing import Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -147,6 +147,11 @@ class DQNTrain(DQN, pl.LightningModule):
 
     def configure_optimizers(self):
         return self.optimizer
+
+
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        super().on_load_checkpoint(checkpoint)
+        
 
     # initialize varaibles for dqn
     # train
