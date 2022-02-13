@@ -1,4 +1,5 @@
 import copy
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
@@ -148,10 +149,28 @@ class DQNTrain(DQN, pl.LightningModule):
     def configure_optimizers(self):
         return self.optimizer
 
-
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         super().on_load_checkpoint(checkpoint)
-        
+        # initialize current epsilon
+        self._curr_epsilon = self.dqn_config.epsilon * self.dqn_config.epsilon_decay**math.floor(
+            self.current_epoch / self.dqn_config.epsilon_update_episodes)
+        # initialize target network
+        self._update_targ()
+        # initialize replay buffer with random policy
+        self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size)
+        policy = DQN(env=self.env,
+                     dqn_net=self.dqn,
+                     dtype=self.dtype,
+                     device=torch.device(self.device))
+        buff_utils.populate_replay_buffer(
+            buff=self._buff,
+            env=self.env,
+            policy=policy,
+            max_episode_steps=self.max_episode_steps,
+            target_size=self.dqn_config.batch_size)
+        self._curr_state = self.env.reset()
+        self._curr_step = 0
+        self._is_terminal = False
 
     # initialize varaibles for dqn
     # train
@@ -166,7 +185,7 @@ class DQNTrain(DQN, pl.LightningModule):
     def on_fit_start(self) -> None:
         self._curr_epsilon = self.dqn_config.epsilon
         # initialize replay buffer with random policy
-        self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size, )
+        self._buff = ReplayBuffer(max_size=self.dqn_config.max_buff_size)
         buff_utils.populate_replay_buffer(
             buff=self._buff,
             env=self.env,
