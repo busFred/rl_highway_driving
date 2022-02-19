@@ -6,6 +6,7 @@ from typing import Optional, Sequence, Tuple, Union
 
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pl_loggers
+import pytorch_lightning.callbacks as pl_callbacks
 import torch
 from attr import field
 from drl_algs import dqn as alg_dqn
@@ -119,6 +120,8 @@ def main(args: Sequence[str]):
     dqn_net.init(env)
     #  configure optimizer
     optim = torch.optim.Adam(dqn_net.parameters(), lr=configs.lr)
+    # configure pl callbacks
+    ckpt_callback = pl_callbacks.ModelCheckpoint(save_top_k=-1)
     # create dqn algorithm with dqn_net
     dqn = alg_dqn.DQNTrain(
         env=env,
@@ -133,7 +136,8 @@ def main(args: Sequence[str]):
                          logger=configs.loggers,
                          auto_select_gpus=configs.use_gpu,
                          check_val_every_n_epoch=5,
-                         default_root_dir=configs.checkpoint_path)
+                         default_root_dir=configs.checkpoint_path,
+                         callbacks=[ckpt_callback])
     trainer.fit(dqn, ckpt_path=configs.ckpt_load_path_fn)
     # save final dqn
     torch.save(dqn.dqn, configs.model_export_path_fn)
