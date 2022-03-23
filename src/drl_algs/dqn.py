@@ -105,6 +105,8 @@ class DQNTrain(DQN, pl.LightningModule):
 
     is_from_ckpt: bool
 
+    to_just_load: bool
+
     # initialized in on_fit_start
     _curr_epsilon: float
     _buff: ReplayBuffer
@@ -136,7 +138,8 @@ class DQNTrain(DQN, pl.LightningModule):
                  n_val_episodes: int = 10,
                  dtype: torch.dtype = torch.float,
                  device: torch.device = torch.device("cpu"),
-                 max_workers: Optional[int] = None) -> None:
+                 max_workers: Optional[int] = None,
+                 to_just_load: bool = False) -> None:
         super().__init__(env=env, dqn_net=dqn_net, dtype=dtype, device=device)
         self.env = env
         self.dqn_config = dqn_config
@@ -146,6 +149,7 @@ class DQNTrain(DQN, pl.LightningModule):
         self.n_val_episodes = n_val_episodes
         self.max_workers = max_workers
         self.is_from_ckpt = False
+        self.to_just_load = to_just_load
 
     # pl method override
 
@@ -154,6 +158,8 @@ class DQNTrain(DQN, pl.LightningModule):
 
     def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         super().on_load_checkpoint(checkpoint)
+        if self.to_just_load == True:
+            return
         self.is_from_ckpt = True
         # initialize current epsilon
         epoch: int = checkpoint["epoch"]
