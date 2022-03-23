@@ -7,7 +7,6 @@ from typing import Sequence, Tuple, Union
 import pytorch_lightning as pl
 import pytorch_lightning.loggers as pl_loggers
 import torch
-from attr import field
 from drl_algs import dqn as alg_dqn
 from int_mpc.mdps.change_lane import ChangeLaneConfig, ChangeLaneEnv
 from int_mpc.nnet.change_lane.dqn import LinearDQN, LinearDQNConfig
@@ -28,8 +27,8 @@ class TrainDQNConfigs:
     dqn_config: alg_dqn.DQNConfig
     dqn_net_config: LinearDQNConfig
     # training configs
-    n_val_episodes: int = field(default=20)
-    lr: float = field(default=1e-3)
+    n_val_episodes: int
+    lr: float
     # experiment name, version, and export path
     experiment_name: str
     experiments_root_path: str
@@ -148,7 +147,3 @@ if __name__ == "__main__":
                          check_val_every_n_epoch=5,
                          default_root_dir=configs.checkpoint_path)
     trainer.fit(dqn, ckpt_path=ckpt_path_fn)
-
-# %%
-
-# %%
