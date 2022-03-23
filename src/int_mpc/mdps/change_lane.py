@@ -119,7 +119,8 @@ class ChangeLaneEnv(DiscreteEnvironment):
             initial_spacing=config.initial_spacing,
             alpha=config.alpha,
             beta=config.beta,
-            reward_speed_range=config.reward_speed_range)
+            reward_speed_range=config.reward_speed_range,
+            max_episode_steps=config.max_episode_steps)
         self._env = highway_mdp.make_highway_env(config=self._config_dict)
         self._total_steps = 0
         self._start_state = None
@@ -381,9 +382,13 @@ class ChangeLaneEnv(DiscreteEnvironment):
 
     # protected static methods
     @staticmethod
-    def _make_config_dict(lanes_count: int, vehicles_count: int,
-                          initial_spacing: float, alpha: float, beta: float,
-                          reward_speed_range: Tuple[float, float]):
+    def _make_config_dict(lanes_count: int,
+                          vehicles_count: int,
+                          initial_spacing: float,
+                          alpha: float,
+                          beta: float,
+                          reward_speed_range: Tuple[float, float],
+                          max_episode_steps: int):
         config: Dict[str, Any] = deepcopy(ChangeLaneEnv.DEFAULT_CONFIG)
         config["lanes_count"] = lanes_count
         config["vehicles_count"] = vehicles_count
@@ -391,4 +396,5 @@ class ChangeLaneEnv(DiscreteEnvironment):
         config["high_speed_reward"] = alpha
         config["collision_reward"] = beta
         config["reward_speed_range"] = reward_speed_range
+        config["duration"] = config["policy_frequency"] * max_episode_steps
         return config
