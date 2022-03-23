@@ -137,7 +137,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-model/
+# model/
 *.ckpt
 metrics/train/tfb
 experiments/
