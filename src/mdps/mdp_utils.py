@@ -1,4 +1,3 @@
-import copy
 from typing import Optional, Sequence
 
 import numpy as np
