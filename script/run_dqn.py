@@ -59,7 +59,7 @@ def get_dqn_config(dqn_config_path: str):
 
 def print_summary(summary: Dict[str, float]):
     for k in summary.keys():
-        print(str.format("{}: ", k, summary[k]))
+        print(str.format("{}: {}", k, summary[k]))
 
 
 def main(args: Sequence[str]):
