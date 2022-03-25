@@ -255,10 +255,10 @@ class ChangeLaneEnv(DiscreteEnvironment):
                     steps_to_crash.append(metric.n_steps_to_crash)
             else:
                 raise ValueError
-        avg_total_reward: float = np.mean(total_rewards, dtype=np.float32)
-        avg_distance: float = np.mean(distance_travel, dtype=np.float32)
-        std_total_reward: float = np.std(total_rewards, dtype=np.float32)
-        std_distance: float = np.std(distance_travel, dtype=np.float32)
+        avg_total_reward: float = np.nanmean(total_rewards, dtype=np.float32)
+        avg_distance: float = np.nanmean(distance_travel, dtype=np.float32)
+        std_total_reward: float = np.nanstd(total_rewards, dtype=np.float32)
+        std_distance: float = np.nanstd(distance_travel, dtype=np.float32)
         n_crashes: float = float(len(steps_to_crash))
         avg_steps_to_crash: float = 0.0
         std_steps_to_crash: float = 0.0
